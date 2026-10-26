@@ -1,0 +1,61 @@
+{
+  "name": "adlib-api",
+  "version": "0.1.0",
+  "description": "Node.js and TypeScript SDK for the AdLib API: one REST API for the public ad libraries of Meta, Google, TikTok, LinkedIn, Pinterest and X, with ad history, watchlists and webhooks.",
+  "license": "MIT",
+  "author": "AdLib",
+  "homepage": "https://example.com",
+  "keywords": [
+    "ad library",
+    "meta ad library",
+    "facebook ads",
+    "google ads transparency",
+    "tiktok ads",
+    "linkedin ads",
+    "competitor ads",
+    "ad intelligence",
+    "adlib",
+    "sdk",
+    "nodejs",
+    "typescript"
+  ],
+  "type": "module",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/cjs/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "build": "node scripts/clean.mjs dist && tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json && node scripts/write-cjs-package.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node scripts/clean.mjs build-test && tsc -p tsconfig.test.json && node scripts/run-tests.mjs",
+    "smoke": "node scripts/smoke.mjs && node scripts/smoke.cjs",
+    "prepublishOnly": "npm test && npm run build && npm run smoke"
+  },
+  "devDependencies": {
+    "@types/node": "18.19.130",
+    "typescript": "6.0.3"
+  }
+}
