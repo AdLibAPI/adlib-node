@@ -57,5 +57,12 @@
   "devDependencies": {
     "@types/node": "18.19.130",
     "typescript": "6.0.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AdLibAPI/adlib-node.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AdLibAPI/adlib-node/issues"
   }
 }

@@ -13,7 +13,7 @@ creative versions and permanently archived images.
 
 > **Get an API key:** [adlibapi.com](https://adlibapi.com) · Docs: [api.adlibapi.com/docs](https://api.adlibapi.com/docs)
 
-**SDKs and integrations:** [Python](https://github.com/adlib/adlib-python) · [MCP server](https://github.com/adlib/adlib-mcp)
+**SDKs and integrations:** [Python](https://github.com/AdLibAPI/adlib-python) · [MCP server](https://www.npmjs.com/package/adlib-mcp)
 
 - No runtime dependencies. Uses the built-in `fetch` (Node 18+).
 - ESM and CommonJS, with type declarations for every request and response.
