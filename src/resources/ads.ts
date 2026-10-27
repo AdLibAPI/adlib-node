@@ -26,7 +26,7 @@ export interface SearchParams {
   domain?: string;
   /** Platforms to query; omit for all that support the query. */
   platform?: PlatformFilter;
-  /** ISO 3166-1 alpha-2, e.g. DE. */
+  /** ISO 3166-1 alpha-2, e.g. US. */
   country?: string;
   /** Default all. */
   status?: StatusFilter;

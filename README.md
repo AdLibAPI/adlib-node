@@ -142,7 +142,7 @@ await adlib.ads.get("meta:1234567890", { signal: AbortSignal.timeout(10_000), ma
 ### Search
 
 ```ts
-await adlib.search({ q: "running shoes", platform: ["meta", "tiktok"], country: "DE" });
+await adlib.search({ q: "running shoes", platform: ["meta", "tiktok"], country: "US" });
 await adlib.search({ domain: "nike.com", status: "active", format: "video" });
 await adlib.search({ advertiser: "Nike", from: "2026-01-01", to: "2026-04-01" });
 // Only political or issue ads (Meta labels them; false excludes them)
