@@ -11,7 +11,7 @@ changed, and set up watchlists that report new, stopped and changed ads to your 
 Ads that disappear from a platform's library stay in the AdLib archive, with their run time,
 creative versions and permanently archived images.
 
-> **Get an API key:** [example.com](https://example.com) · Docs: [api.example.com/docs](https://api.example.com/docs)
+> **Get an API key:** [adlibapi.com](https://adlibapi.com) · Docs: [api.adlibapi.com/docs](https://api.adlibapi.com/docs)
 
 **SDKs and integrations:** [Python](https://github.com/adlib/adlib-python) · [MCP server](https://github.com/adlib/adlib-mcp)
 
@@ -56,7 +56,7 @@ const { data: watchlist } = await adlib.watchlists.create({
 console.log(watchlist.id);
 ```
 
-Requests go to `https://api.example.com` with the `X-API-Key` header. Ids are
+Requests go to `https://api.adlibapi.com` with the `X-API-Key` header. Ids are
 `<platform>:<platform_id>` everywhere, e.g. `meta:15087023444` or `google:AR18378488041124659201`.
 
 ### Verify webhooks
@@ -121,7 +121,7 @@ const adlib = new AdLib({
 ```ts
 new AdLib({
   apiKey: "...",         // or ADLIB_API_KEY
-  baseUrl: "...",        // or ADLIB_BASE_URL; default https://api.example.com (a trailing /v1 is ignored)
+  baseUrl: "...",        // or ADLIB_BASE_URL; default https://api.adlibapi.com (a trailing /v1 is ignored)
   timeoutMs: 120_000,    // per attempt; live searches over all platforms can take a while
   maxRetries: 2,         // see Retries
   retryDelayMs: 500,     // base delay of the exponential backoff

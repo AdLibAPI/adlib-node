@@ -24,7 +24,7 @@ describe("AdLib client configuration", () => {
     const { client, calls } = makeClient([json({ status: "operational" })], { apiKey: "abc" });
     assert.equal(client.baseUrl, DEFAULT_BASE_URL);
     assert.deepEqual(await client.status(), { status: "operational" });
-    assert.equal(calls[0]!.url.toString(), "https://api.example.com/v1/status");
+    assert.equal(calls[0]!.url.toString(), "https://api.adlibapi.com/v1/status");
     assert.equal(calls[0]!.method, "GET");
     assert.equal(calls[0]!.headers["x-api-key"], "abc");
     assert.equal(calls[0]!.headers["accept"], "application/json");

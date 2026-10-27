@@ -27,7 +27,7 @@ import type {
 import type { SearchParams } from "./resources/ads.js";
 import { VERSION } from "./version.js";
 
-export const DEFAULT_BASE_URL = "https://api.example.com";
+export const DEFAULT_BASE_URL = "https://api.adlibapi.com";
 export const DEFAULT_TIMEOUT_MS = 120_000;
 export const DEFAULT_MAX_RETRIES = 2;
 const DEFAULT_RETRY_DELAY_MS = 500;
@@ -59,7 +59,7 @@ export interface ClientOptions {
   /** AdLib API key, sent as X-API-Key. Defaults to the ADLIB_API_KEY environment variable. */
   apiKey?: string;
   /**
-   * API base URL. Defaults to ADLIB_BASE_URL, else https://api.example.com. A trailing /v1 is
+   * API base URL. Defaults to ADLIB_BASE_URL, else https://api.adlibapi.com. A trailing /v1 is
    * ignored.
    */
   baseUrl?: string;

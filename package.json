@@ -4,7 +4,7 @@
   "description": "Node.js and TypeScript SDK for the AdLib API: one REST API for the public ad libraries of Meta, Google, TikTok, LinkedIn, Pinterest and X, with ad history, watchlists and webhooks.",
   "license": "MIT",
   "author": "AdLib",
-  "homepage": "https://example.com",
+  "homepage": "https://adlibapi.com",
   "keywords": [
     "ad library",
     "meta ad library",
