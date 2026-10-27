@@ -5,17 +5,22 @@ import type {
   EventList,
   EventType,
   PlatformFilter,
+  ReportKind,
   RequestOptions,
+  ResolveReportResponse,
+  ResolveReportsResponse,
   ResolveResponse,
   Sort,
   Source,
   StatusFilter,
 } from "../types.js";
-import { APIResource, csv, dateParam, enc, intInRange, nonEmpty, oneOf, platforms, prefixedId } from "./shared.js";
+import { ValidationError } from "../errors.js";
+import { APIResource, compact, csv, dateParam, enc, intInRange, nonEmpty, oneOf, platforms, prefixedId } from "./shared.js";
 
 const STATUSES: readonly StatusFilter[] = ["active", "inactive", "all"];
 const SOURCES: readonly Source[] = ["live", "history"];
 const SORTS: readonly Sort[] = ["newest", "days_running"];
+const REPORT_KINDS: readonly ReportKind[] = ["wrong_match", "missing_match"];
 
 export interface ResolveParams {
   /** e.g. nike.com */
@@ -24,6 +29,17 @@ export interface ResolveParams {
   platform?: PlatformFilter;
   /** 1 to 10, default 3. */
   maxPerPlatform?: number;
+}
+
+export interface ReportMatchParams {
+  /** The domain you resolved, e.g. nike.com */
+  domain: string;
+  /** wrong_match: an advertiser in the resolve result does not belong to the domain. missing_match: the domain's account is missing. */
+  kind: ReportKind;
+  /** <platform>:<id>. Required for wrong_match; for missing_match, the account if you know it. */
+  advertiserId?: string;
+  /** What is wrong, e.g. "agency account, not the brand". Up to 1000 characters. */
+  note?: string;
 }
 
 export interface GetAdvertiserParams {
@@ -67,7 +83,7 @@ export interface TimelineParams {
   limit?: number;
 }
 
-/** Advertisers: resolve a domain, profiles, ads, changes, stats and timelines. */
+/** Advertisers: resolve a domain (and report wrong matches), profiles, ads, changes, stats and timelines. */
 export class Advertisers extends APIResource {
   /**
    * A brand's advertiser ids on Meta, Google, TikTok, LinkedIn, Pinterest and X from its domain,
@@ -87,6 +103,36 @@ export class Advertisers extends APIResource {
       options,
     );
   };
+
+  /**
+   * Reports a wrong or missing resolve match. We review reports; accepted ones change the resolve
+   * for everyone. Up to 50 reports per day, free. Not retried on 5xx, so it is never sent twice.
+   */
+  reportMatch = (params: ReportMatchParams, options?: RequestOptions): Promise<ResolveReportResponse> => {
+    const kind = oneOf("kind", params?.kind, REPORT_KINDS);
+    if (kind === undefined) throw new ValidationError("kind must be one of wrong_match, missing_match");
+    if (kind === "wrong_match" && params.advertiserId === undefined) {
+      throw new ValidationError("advertiserId is required for kind wrong_match");
+    }
+    if (params.note !== undefined && params.note.length > 1000) throw new ValidationError("note must be at most 1000 characters");
+    return this.client.request(
+      {
+        method: "POST",
+        path: "/v1/advertisers/resolve/reports",
+        body: compact({
+          domain: nonEmpty("domain", params.domain),
+          kind,
+          advertiser_id: params.advertiserId === undefined ? undefined : prefixedId("advertiserId", params.advertiserId),
+          note: params.note,
+        }),
+      },
+      options,
+    );
+  };
+
+  /** Your last 100 resolve reports and how we resolved them, newest first. Free. */
+  listReports = (options?: RequestOptions): Promise<ResolveReportsResponse> =>
+    this.client.request({ path: "/v1/advertisers/resolve/reports" }, options);
 
   /** An advertiser incl. active ads and ads known in the archive. */
   get = (id: string | GetAdvertiserParams, options?: RequestOptions): Promise<AdvertiserResponse> => {

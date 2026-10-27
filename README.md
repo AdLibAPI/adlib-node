@@ -145,6 +145,8 @@ await adlib.ads.get("meta:1234567890", { signal: AbortSignal.timeout(10_000), ma
 await adlib.search({ q: "running shoes", platform: ["meta", "tiktok"], country: "DE" });
 await adlib.search({ domain: "nike.com", status: "active", format: "video" });
 await adlib.search({ advertiser: "Nike", from: "2026-01-01", to: "2026-04-01" });
+// Only political or issue ads (Meta labels them; false excludes them)
+await adlib.search({ q: "election", political: true });
 // Our archive, including ads gone from the platforms; longest-running first
 await adlib.search({ advertiser: "meta:15087023444", source: "history", sort: "days_running" });
 ```
@@ -171,7 +173,29 @@ await adlib.advertisers.ads({ id: "meta:15087023444", source: "history", status:
 await adlib.advertisers.changes({ id: "meta:15087023444", since: "2026-10-01", types: ["started", "stopped"] });
 await adlib.advertisers.stats("meta:15087023444");   // by status/format/country/language, winners
 await adlib.advertisers.timeline({ id: "meta:15087023444", from: "2026-01-01" });
+
+// A wrong or missing resolve match? Report it (free, up to 50 per day). Accepted reports fix the
+// resolve for everyone and show up as match_reason "manual".
+await adlib.advertisers.reportMatch({
+  domain: "nike.com",
+  kind: "wrong_match", // or "missing_match" (advertiserId optional)
+  advertiserId: "google:AR18378488041124659201",
+  note: "agency account, not the brand",
+});
+await adlib.advertisers.listReports(); // your reports and how we resolved them
 ```
+
+### Companies
+
+```ts
+// All ad accounts of a domain across platforms, with combined stats
+const { data: company } = await adlib.companies.get("audi.de");
+await adlib.companies.get({ domain: "audi.de", platform: ["meta", "google"], minScore: 0.75, maxPerPlatform: 5 });
+console.log(company.name, company.stats.total_ads, company.platforms?.map((p) => [p.platform, p.accounts, p.active_ads]));
+console.log(company.candidates); // accounts below minScore, not part of the totals
+```
+
+Costs one resolve plus one stats call. `stats.advertiser_id` is the domain.
 
 ### Domains
 
@@ -195,8 +219,8 @@ const result = await adlib.batch.get({ jobId: job.job_id }); // status and pagin
 ### Watchlists
 
 ```ts
-await adlib.watchlists.list();
-await adlib.watchlists.get(id);
+await adlib.watchlists.list();    // advertiser_count per watchlist; advertisers is empty here
+await adlib.watchlists.get(id);   // incl. the crawl status of each advertiser
 await adlib.watchlists.addAdvertisers(id, ["google:AR18378488041124659201"]);
 await adlib.watchlists.removeAdvertiser(id, "google:AR18378488041124659201");
 await adlib.watchlists.delete(id);
@@ -258,7 +282,7 @@ extend `AdLibError`, which has `status`, `code`, `message`, `requestId`, `billed
 | `ValidationError`         | 400 or 422 (`code: "unsupported"`: the platform cannot do this query or filter), or invalid arguments caught before sending |
 | `AuthenticationError`     | 401: key missing or wrong, or no key configured                       |
 | `InsufficientCreditsError`| 402: no credits left                                                  |
-| `PermissionDeniedError`   | 403: key disabled                                                     |
+| `PermissionDeniedError`   | 403: key disabled, or `history_limit`: the ad is older than your plan's archive window (free 90 days, starter 365, growth and up unlimited) |
 | `NotFoundError`           | 404: unknown id. Try `source: "history"` or `advertisers.resolve`     |
 | `RateLimitError`          | 429 `rate_limited`. `retryAfter` holds the wait in seconds            |
 | `QuotaExceededError`      | 429 `quota_exceeded`: monthly credits used up (extends `RateLimitError`) |

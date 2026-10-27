@@ -12,6 +12,7 @@ import { paginate, paginateItems, type Page, type PageMethod, type PageParams, t
 import { Ads } from "./resources/ads.js";
 import { Advertisers } from "./resources/advertisers.js";
 import { Batch } from "./resources/batch.js";
+import { Companies } from "./resources/companies.js";
 import { Domains } from "./resources/domains.js";
 import { Watchlists } from "./resources/watchlists.js";
 import { Webhooks } from "./resources/webhooks.js";
@@ -162,6 +163,7 @@ export class AdLib {
 
   readonly ads: Ads;
   readonly advertisers: Advertisers;
+  readonly companies: Companies;
   readonly domains: Domains;
   readonly batch: Batch;
   readonly watchlists: Watchlists;
@@ -189,6 +191,7 @@ export class AdLib {
 
     this.ads = new Ads(this);
     this.advertisers = new Advertisers(this);
+    this.companies = new Companies(this);
     this.domains = new Domains(this);
     this.batch = new Batch(this);
     this.watchlists = new Watchlists(this);

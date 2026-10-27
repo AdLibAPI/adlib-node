@@ -115,6 +115,8 @@ export interface Ad {
   spend_range: Range;
   impressions_range: Range;
   derived: Derived;
+  /** Political or issue ad. Meta only; null where the platform doesn't label it. */
+  political: boolean | null;
   library_url?: string;
   /** Pointer to the archived raw upstream record. */
   raw_ref?: string;
@@ -144,7 +146,8 @@ export interface Advertiser {
 export interface ResolvedAdvertiser extends Advertiser {
   /** 0..1 confidence that this advertiser belongs to the domain. */
   score: number;
-  match_reason: "domain" | "name" | "history";
+  /** manual = confirmed by us (or from a customer report we accepted). */
+  match_reason: "domain" | "name" | "history" | "manual";
 }
 
 export interface PlatformFailure {
@@ -252,6 +255,8 @@ export interface AdvertiserStats {
   advertiser_id: string;
   /** Ads in our history (incl. ads gone from the platform). */
   total_ads: number;
+  /** Ads the platform labels political or issue ads (Meta only). */
+  political_ads: number;
   by_status: Record<string, number>;
   by_format: Record<string, number>;
   /** Top 25 countries. */
@@ -268,6 +273,56 @@ export interface AdvertiserStats {
 
 export interface AdvertiserStatsResponse {
   data: AdvertiserStats;
+}
+
+export type ReportKind = "wrong_match" | "missing_match";
+export type ReportStatus = "open" | "accepted" | "rejected";
+
+export interface ResolveReport {
+  id: number;
+  domain: string;
+  advertiser_id: string | null;
+  kind: ReportKind;
+  note: string | null;
+  status: ReportStatus;
+  /** Our answer when the report was reviewed. */
+  resolution: string | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+export interface ResolveReportResponse {
+  data: ResolveReport;
+}
+
+export interface ResolveReportsResponse {
+  data: ResolveReport[] | null;
+}
+
+export interface CompanyPlatform {
+  platform: string;
+  /** Accounts on this platform that count towards the totals. */
+  accounts: number;
+  total_ads_known: number;
+  active_ads: number;
+}
+
+export interface Company {
+  domain: string;
+  /** Name of the most confident account. */
+  name: string;
+  /** Accounts with score >= min_score. */
+  accounts: ResolvedAdvertiser[] | null;
+  /** Possible accounts below min_score; report wrong ones with advertisers.reportMatch. */
+  candidates: ResolvedAdvertiser[] | null;
+  platforms: CompanyPlatform[] | null;
+  /** Combined history of all accounts (advertiser_id is the domain). */
+  stats: AdvertiserStats;
+  errors?: PlatformFailure[] | null;
+}
+
+export interface CompanyResponse {
+  data: Company;
 }
 
 export interface PlatformCheck {
@@ -338,9 +393,12 @@ export interface Watchlist {
   id: string;
   name: string;
   webhook_url: string | null;
-  interval_seconds: number;
+  /** Crawl interval, as set with intervalHours on create. */
+  interval_hours: number;
   archive_videos: boolean;
   created_at: string;
+  advertiser_count: number;
+  /** Empty in watchlists.list(); watchlists.get(id) has the entries. */
   advertisers: WatchlistEntry[] | null;
 }
 
@@ -409,6 +467,8 @@ export interface Plan {
   max_batch_items: number;
   max_watchlist_advertisers: number;
   history_access: boolean;
+  /** How far back archived ads are available: 0 = unlimited. */
+  history_days: number;
 }
 
 export interface UsageResponse {

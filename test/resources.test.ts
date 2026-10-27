@@ -17,6 +17,7 @@ describe("endpoints", () => {
       from: "2026-01-01",
       to: "2026-02-01",
       format: "video",
+      political: false,
       source: "history",
       sort: "days_running",
       cursor: "c",
@@ -31,6 +32,7 @@ describe("endpoints", () => {
       from: "2026-01-01",
       to: "2026-02-01",
       format: "video",
+      political: "false",
       source: "history",
       sort: "days_running",
       cursor: "c",
@@ -84,6 +86,46 @@ describe("endpoints", () => {
     assert.equal(calls[6]!.url.pathname, "/v1/advertisers/meta:1/stats");
     assert.equal(calls[7]!.url.pathname, "/v1/advertisers/meta:1/timeline");
     assert.deepEqual(q(calls[7]!.url), { from: "2026-01-01", to: "2026-02-01", cursor: "c", limit: "10" });
+  });
+
+  it("advertisers resolve reports", async () => {
+    const { client, calls } = makeClient([
+      json({ data: { id: 7, kind: "wrong_match", status: "open" } }, 201),
+      json({ data: { id: 8 } }, 201),
+      json({ data: [] }),
+    ]);
+    const created = await client.advertisers.reportMatch({
+      domain: "audi.de",
+      kind: "wrong_match",
+      advertiserId: "google:AR01700036858500612097",
+      note: "agency account, not the brand",
+    });
+    assert.equal(created.data.id, 7);
+    await client.advertisers.reportMatch({ domain: "audi.de", kind: "missing_match" });
+    await client.advertisers.listReports();
+    assert.deepEqual(
+      calls.map((c) => `${c.method} ${c.url.pathname}`),
+      ["POST /v1/advertisers/resolve/reports", "POST /v1/advertisers/resolve/reports", "GET /v1/advertisers/resolve/reports"],
+    );
+    assert.deepEqual(JSON.parse(calls[0]!.body!), {
+      domain: "audi.de",
+      kind: "wrong_match",
+      advertiser_id: "google:AR01700036858500612097",
+      note: "agency account, not the brand",
+    });
+    assert.deepEqual(JSON.parse(calls[1]!.body!), { domain: "audi.de", kind: "missing_match" });
+  });
+
+  it("companies.get", async () => {
+    const { client, calls } = makeClient([json({ data: { domain: "audi.de" } })]);
+    const res = await client.companies.get("audi.de");
+    assert.equal(res.data.domain, "audi.de");
+    await client.companies.get({ domain: "audi.de", platform: ["meta", "google"], minScore: 0.5, maxPerPlatform: 10 });
+    await client.companies.get({ domain: "audi.de", minScore: 0 });
+    assert.equal(calls[0]!.url.pathname, "/v1/companies/audi.de");
+    assert.deepEqual(q(calls[0]!.url), {});
+    assert.deepEqual(q(calls[1]!.url), { platform: "meta,google", min_score: "0.5", max_per_platform: "10" });
+    assert.deepEqual(q(calls[2]!.url), { min_score: "0" });
   });
 
   it("domains.check", async () => {

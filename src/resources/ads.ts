@@ -35,6 +35,8 @@ export interface SearchParams {
   /** Shown before (YYYY-MM-DD). */
   to?: string;
   format?: AdFormat;
+  /** true = only political or issue ads, false = none. Only Meta labels them, so true limits results to Meta. */
+  political?: boolean;
   /** live (default) or history: our own archive, including ads gone from the platforms. */
   source?: Source;
   /** source=history only: days_running = longest-running ads first (likely winners). */
@@ -73,6 +75,7 @@ export class Ads extends APIResource {
           from: params.from,
           to: params.to,
           format: oneOf("format", params.format, FORMATS),
+          political: params.political,
           source: oneOf("source", params.source, SOURCES),
           sort: oneOf("sort", params.sort, SORTS),
           cursor: params.cursor,

@@ -54,7 +54,10 @@ export class ValidationError extends APIError {}
 /** 401: the API key is missing or wrong. Also thrown when no key is configured. */
 export class AuthenticationError extends APIError {}
 
-/** 403: the key is disabled or not allowed to make this call. */
+/**
+ * 403: the key is disabled or not allowed to make this call. Code `history_limit` means the ad is
+ * older than your plan's archive window (free 90 days, starter 365 days, growth and up unlimited).
+ */
 export class PermissionDeniedError extends APIError {}
 
 /** 402: no credits left on the account. */

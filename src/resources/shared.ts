@@ -54,6 +54,14 @@ export function intInRange(name: string, value: number | undefined, min: number,
   return value;
 }
 
+export function numberInRange(name: string, value: number | undefined, min: number, max: number): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max) {
+    throw new ValidationError(`${name} must be a number from ${min} to ${max}`);
+  }
+  return value;
+}
+
 export function oneOf<T extends string>(name: string, value: T | undefined, allowed: readonly T[]): T | undefined {
   if (value === undefined) return undefined;
   if (!allowed.includes(value)) throw new ValidationError(`${name} must be one of ${allowed.join(", ")}`);

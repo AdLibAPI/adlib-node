@@ -40,6 +40,7 @@ describe("errors", () => {
       [401, "unauthorized", AuthenticationError],
       [402, "payment_required", InsufficientCreditsError],
       [403, "forbidden", PermissionDeniedError],
+      [403, "history_limit", PermissionDeniedError],
       [404, "not_found", NotFoundError],
       [429, "rate_limited", RateLimitError],
       [429, "quota_exceeded", QuotaExceededError],
@@ -122,6 +123,16 @@ describe("errors", () => {
     assert.throws(() => client.batch.create({ type: "ads", items: [] }), ValidationError);
     assert.throws(() => client.webhooks.delivery("abc"), ValidationError);
     assert.throws(() => client.search({ q: "x", status: "nope" as never }), ValidationError);
+    assert.throws(() => client.companies.get(""), ValidationError);
+    assert.throws(() => client.companies.get({ domain: "audi.de", minScore: 1.5 }), ValidationError);
+    assert.throws(() => client.companies.get({ domain: "audi.de", maxPerPlatform: 11 }), ValidationError);
+    assert.throws(() => client.advertisers.reportMatch({ domain: "audi.de", kind: "wrong_match" }), ValidationError);
+    assert.throws(() => client.advertisers.reportMatch({ domain: "audi.de", kind: "nope" as never }), ValidationError);
+    assert.throws(() => client.advertisers.reportMatch({ domain: "audi.de", kind: "missing_match", advertiserId: "audi" }), ValidationError);
+    assert.throws(
+      () => client.advertisers.reportMatch({ domain: "audi.de", kind: "missing_match", note: "x".repeat(1001) }),
+      ValidationError,
+    );
     assert.equal(calls.length, 0);
   });
 });
