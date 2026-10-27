@@ -178,10 +178,12 @@ await adlib.advertisers.timeline({ id: "meta:15087023444", from: "2026-01-01" })
 // resolve for everyone and show up as match_reason "manual".
 await adlib.advertisers.reportMatch({
   domain: "nike.com",
-  kind: "wrong_match", // or "missing_match" (advertiserId optional)
+  kind: "wrong_match", // or "missing_match" (advertiserId and role optional)
   advertiserId: "google:AR18378488041124659201",
-  note: "agency account, not the brand",
+  note: "not this brand",
 });
+// The account belongs to the domain but has the wrong role (advertiserId and role required)
+await adlib.advertisers.reportMatch({ domain: "nike.com", kind: "wrong_role", advertiserId: "meta:42", role: "agency" });
 await adlib.advertisers.listReports(); // your reports and how we resolved them
 ```
 
@@ -192,10 +194,14 @@ await adlib.advertisers.listReports(); // your reports and how we resolved them
 const { data: company } = await adlib.companies.get("audi.de");
 await adlib.companies.get({ domain: "audi.de", platform: ["meta", "google"], minScore: 0.75, maxPerPlatform: 5 });
 console.log(company.name, company.stats.total_ads, company.platforms?.map((p) => [p.platform, p.accounts, p.active_ads]));
+console.log(company.related);    // agencies, resellers and partners running ads for the domain
 console.log(company.candidates); // accounts below minScore, not part of the totals
+await adlib.companies.get({ domain: "audi.de", includeRelated: true }); // count related in platforms and stats
 ```
 
-Costs one resolve plus one stats call. `stats.advertiser_id` is the domain.
+`accounts` holds the company's own accounts (`role` brand or unknown); every resolved advertiser has a
+`role` and a `role_source` (manual or inferred). Costs one resolve plus one stats call.
+`stats.advertiser_id` is the domain.
 
 ### Domains
 

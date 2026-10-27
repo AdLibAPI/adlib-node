@@ -128,6 +128,12 @@ describe("errors", () => {
     assert.throws(() => client.companies.get({ domain: "audi.de", maxPerPlatform: 11 }), ValidationError);
     assert.throws(() => client.advertisers.reportMatch({ domain: "audi.de", kind: "wrong_match" }), ValidationError);
     assert.throws(() => client.advertisers.reportMatch({ domain: "audi.de", kind: "nope" as never }), ValidationError);
+    assert.throws(() => client.advertisers.reportMatch({ domain: "audi.de", kind: "wrong_role", role: "agency" }), ValidationError);
+    assert.throws(() => client.advertisers.reportMatch({ domain: "audi.de", kind: "wrong_role", advertiserId: "meta:1" }), ValidationError);
+    assert.throws(
+      () => client.advertisers.reportMatch({ domain: "audi.de", kind: "missing_match", role: "unknown" as never }),
+      ValidationError,
+    );
     assert.throws(() => client.advertisers.reportMatch({ domain: "audi.de", kind: "missing_match", advertiserId: "audi" }), ValidationError);
     assert.throws(
       () => client.advertisers.reportMatch({ domain: "audi.de", kind: "missing_match", note: "x".repeat(1001) }),

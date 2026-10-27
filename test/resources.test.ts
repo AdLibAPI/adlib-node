@@ -92,6 +92,7 @@ describe("endpoints", () => {
     const { client, calls } = makeClient([
       json({ data: { id: 7, kind: "wrong_match", status: "open" } }, 201),
       json({ data: { id: 8 } }, 201),
+      json({ data: { id: 9 } }, 201),
       json({ data: [] }),
     ]);
     const created = await client.advertisers.reportMatch({
@@ -102,10 +103,16 @@ describe("endpoints", () => {
     });
     assert.equal(created.data.id, 7);
     await client.advertisers.reportMatch({ domain: "audi.de", kind: "missing_match" });
+    await client.advertisers.reportMatch({ domain: "audi.de", kind: "wrong_role", advertiserId: "meta:42", role: "agency" });
     await client.advertisers.listReports();
     assert.deepEqual(
       calls.map((c) => `${c.method} ${c.url.pathname}`),
-      ["POST /v1/advertisers/resolve/reports", "POST /v1/advertisers/resolve/reports", "GET /v1/advertisers/resolve/reports"],
+      [
+        "POST /v1/advertisers/resolve/reports",
+        "POST /v1/advertisers/resolve/reports",
+        "POST /v1/advertisers/resolve/reports",
+        "GET /v1/advertisers/resolve/reports",
+      ],
     );
     assert.deepEqual(JSON.parse(calls[0]!.body!), {
       domain: "audi.de",
@@ -114,6 +121,7 @@ describe("endpoints", () => {
       note: "agency account, not the brand",
     });
     assert.deepEqual(JSON.parse(calls[1]!.body!), { domain: "audi.de", kind: "missing_match" });
+    assert.deepEqual(JSON.parse(calls[2]!.body!), { domain: "audi.de", kind: "wrong_role", advertiser_id: "meta:42", role: "agency" });
   });
 
   it("companies.get", async () => {
@@ -122,10 +130,12 @@ describe("endpoints", () => {
     assert.equal(res.data.domain, "audi.de");
     await client.companies.get({ domain: "audi.de", platform: ["meta", "google"], minScore: 0.5, maxPerPlatform: 10 });
     await client.companies.get({ domain: "audi.de", minScore: 0 });
+    await client.companies.get({ domain: "audi.de", includeRelated: true });
     assert.equal(calls[0]!.url.pathname, "/v1/companies/audi.de");
     assert.deepEqual(q(calls[0]!.url), {});
     assert.deepEqual(q(calls[1]!.url), { platform: "meta,google", min_score: "0.5", max_per_platform: "10" });
     assert.deepEqual(q(calls[2]!.url), { min_score: "0" });
+    assert.deepEqual(q(calls[3]!.url), { include_related: "true" });
   });
 
   it("domains.check", async () => {

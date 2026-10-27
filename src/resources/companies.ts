@@ -10,6 +10,8 @@ export interface GetCompanyParams {
   minScore?: number;
   /** Brands often run several accounts per platform (countries, product lines). 1 to 10, default 5. */
   maxPerPlatform?: number;
+  /** Count agency, reseller and partner accounts (`related`) in platforms and stats too. */
+  includeRelated?: boolean;
 }
 
 /** Companies: all ad accounts of a domain across platforms, with combined stats. */
@@ -17,8 +19,9 @@ export class Companies extends APIResource {
   /**
    * Resolves the domain (like advertisers.resolve, including our manual corrections), keeps
    * accounts with score >= minScore and aggregates their history: totals, platforms, countries,
-   * formats, weekly launches and the longest-running ads. Accounts below the threshold are listed
-   * as candidates. Costs one resolve plus one stats call.
+   * formats, weekly launches and the longest-running ads. Accounts of agencies, resellers and
+   * partners are listed under `related` and left out of the totals unless `includeRelated`.
+   * Accounts below the threshold are listed as candidates. Costs one resolve plus one stats call.
    */
   get = (params: GetCompanyParams | string, options?: RequestOptions): Promise<CompanyResponse> => {
     const p = typeof params === "string" ? { domain: params } : params;
@@ -29,6 +32,7 @@ export class Companies extends APIResource {
           platform: platforms(p.platform),
           min_score: numberInRange("minScore", p.minScore, 0, 1),
           max_per_platform: intInRange("maxPerPlatform", p.maxPerPlatform, 1, 10),
+          include_related: p.includeRelated,
         },
       },
       options,

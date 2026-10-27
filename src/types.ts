@@ -143,11 +143,17 @@ export interface Advertiser {
   extra?: Record<string, unknown>;
 }
 
+/** An account's relation to a domain: the brand itself, or an agency, reseller (dealer, importer) or partner running ads for it. */
+export type AdvertiserRole = "brand" | "agency" | "reseller" | "partner" | "unknown";
+
 export interface ResolvedAdvertiser extends Advertiser {
   /** 0..1 confidence that this advertiser belongs to the domain. */
   score: number;
   /** manual = confirmed by us (or from a customer report we accepted). */
   match_reason: "domain" | "name" | "history" | "manual";
+  role: AdvertiserRole;
+  /** manual = set by us; inferred = from the account name. */
+  role_source: "manual" | "inferred";
 }
 
 export interface PlatformFailure {
@@ -275,7 +281,9 @@ export interface AdvertiserStatsResponse {
   data: AdvertiserStats;
 }
 
-export type ReportKind = "wrong_match" | "missing_match";
+export type ReportKind = "wrong_match" | "missing_match" | "wrong_role";
+/** The role a report says the account should have. */
+export type ReportRole = Exclude<AdvertiserRole, "unknown">;
 export type ReportStatus = "open" | "accepted" | "rejected";
 
 export interface ResolveReport {
@@ -283,6 +291,8 @@ export interface ResolveReport {
   domain: string;
   advertiser_id: string | null;
   kind: ReportKind;
+  /** wrong_role / missing_match: the role the account should have. */
+  role: ReportRole | null;
   note: string | null;
   status: ReportStatus;
   /** Our answer when the report was reviewed. */
@@ -311,12 +321,14 @@ export interface Company {
   domain: string;
   /** Name of the most confident account. */
   name: string;
-  /** Accounts with score >= min_score. */
+  /** The company's own accounts (role brand or unknown) with score >= min_score. */
   accounts: ResolvedAdvertiser[] | null;
+  /** Agencies, resellers and partners running ads for the domain. Not in platforms and stats unless includeRelated. */
+  related: ResolvedAdvertiser[] | null;
   /** Possible accounts below min_score; report wrong ones with advertisers.reportMatch. */
   candidates: ResolvedAdvertiser[] | null;
   platforms: CompanyPlatform[] | null;
-  /** Combined history of all accounts (advertiser_id is the domain). */
+  /** Combined history of the accounts, plus related with includeRelated (advertiser_id is the domain). */
   stats: AdvertiserStats;
   errors?: PlatformFailure[] | null;
 }

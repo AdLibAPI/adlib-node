@@ -6,6 +6,7 @@ import type {
   EventType,
   PlatformFilter,
   ReportKind,
+  ReportRole,
   RequestOptions,
   ResolveReportResponse,
   ResolveReportsResponse,
@@ -20,7 +21,8 @@ import { APIResource, compact, csv, dateParam, enc, intInRange, nonEmpty, oneOf,
 const STATUSES: readonly StatusFilter[] = ["active", "inactive", "all"];
 const SOURCES: readonly Source[] = ["live", "history"];
 const SORTS: readonly Sort[] = ["newest", "days_running"];
-const REPORT_KINDS: readonly ReportKind[] = ["wrong_match", "missing_match"];
+const REPORT_KINDS: readonly ReportKind[] = ["wrong_match", "missing_match", "wrong_role"];
+const REPORT_ROLES: readonly ReportRole[] = ["brand", "agency", "reseller", "partner"];
 
 export interface ResolveParams {
   /** e.g. nike.com */
@@ -34,10 +36,16 @@ export interface ResolveParams {
 export interface ReportMatchParams {
   /** The domain you resolved, e.g. nike.com */
   domain: string;
-  /** wrong_match: an advertiser in the resolve result does not belong to the domain. missing_match: the domain's account is missing. */
+  /**
+   * wrong_match: an advertiser in the resolve result does not belong to the domain. missing_match:
+   * the domain's account is missing. wrong_role: the account belongs to the domain but has the
+   * wrong role, e.g. an agency shown as the brand.
+   */
   kind: ReportKind;
-  /** <platform>:<id>. Required for wrong_match; for missing_match, the account if you know it. */
+  /** <platform>:<id>. Required for wrong_match and wrong_role; for missing_match, the account if you know it. */
   advertiserId?: string;
+  /** The role the account should have. Required for wrong_role, optional for missing_match. */
+  role?: ReportRole;
   /** What is wrong, e.g. "agency account, not the brand". Up to 1000 characters. */
   note?: string;
 }
@@ -111,9 +119,11 @@ export class Advertisers extends APIResource {
   reportMatch = (params: ReportMatchParams, options?: RequestOptions): Promise<ResolveReportResponse> => {
     const kind = oneOf("kind", params?.kind, REPORT_KINDS);
     if (kind === undefined) throw new ValidationError("kind must be one of wrong_match, missing_match");
-    if (kind === "wrong_match" && params.advertiserId === undefined) {
-      throw new ValidationError("advertiserId is required for kind wrong_match");
+    if ((kind === "wrong_match" || kind === "wrong_role") && params.advertiserId === undefined) {
+      throw new ValidationError(`advertiserId is required for kind ${kind}`);
     }
+    const role = oneOf("role", params.role, REPORT_ROLES);
+    if (kind === "wrong_role" && role === undefined) throw new ValidationError("role is required for kind wrong_role");
     if (params.note !== undefined && params.note.length > 1000) throw new ValidationError("note must be at most 1000 characters");
     return this.client.request(
       {
@@ -123,6 +133,7 @@ export class Advertisers extends APIResource {
           domain: nonEmpty("domain", params.domain),
           kind,
           advertiser_id: params.advertiserId === undefined ? undefined : prefixedId("advertiserId", params.advertiserId),
+          role,
           note: params.note,
         }),
       },
