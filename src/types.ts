@@ -367,13 +367,25 @@ export interface AdFeatures {
 }
 
 export interface AdFeaturesResponse {
-  data: AdFeatures;
+  /** null while `meta.status` is `processing`. */
+  data: AdFeatures | null;
   meta: {
     ad_id: string;
+    /** `processing`: the media are still being analysed (HTTP 202, not billed); ask again after `retry_after` seconds. */
+    status: "ready" | "processing";
+    /** Seconds to wait before asking again (processing only). */
+    retry_after?: number;
     /** Served from an earlier analysis of the same ad version. */
     cached: boolean;
-    analyzed_at: string;
+    analyzed_at?: string;
   };
+}
+
+export interface FeaturesOptions extends RequestOptions {
+  /** Ask again while the API is still analysing the media (default true). */
+  wait?: boolean;
+  /** Give up waiting after this long and return the `processing` answer (default 120000). */
+  maxWaitMs?: number;
 }
 
 export interface LibraryUrlResponse {

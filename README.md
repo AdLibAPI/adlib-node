@@ -214,7 +214,8 @@ the ad; we keep it.
 `ads.features(id)` returns tags with evidence: every text tag (`urgency`,
 `social_proof`, `guarantee`, `free_offer`, `free_shipping`, `novelty`) carries the exact text it
 matched, media are measured (aspect, duration, scene cuts, audio) and on-image text
-is read with OCR. Results are kept per ad version.
+is read with OCR. Results are kept per ad version. A new video analysis can take a minute: `ads.features` waits for it
+(up to 2 minutes; `{ wait: false }` returns the first `processing` answer at once).
 
 ### Advertisers
 

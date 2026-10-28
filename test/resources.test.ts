@@ -75,9 +75,24 @@ describe("endpoints", () => {
     const { client, calls } = makeClient([json(body)]);
     const res = await client.ads.features("meta:1187430977361020");
     assert.equal(calls[0]!.url.pathname, "/v1/ads/meta:1187430977361020/features");
-    assert.equal(res.data.format, "vertical_video");
+    assert.equal(res.data?.format, "vertical_video");
     assert.equal(res.meta.cached, false);
     assert.throws(() => client.ads.features("1187430977361020"), /<platform>:<id>/);
+  });
+
+  it("ads.features asks again while the API answers 202", async () => {
+    const processing = { data: null, meta: { ad_id: "tiktok:1", status: "processing", retry_after: 1, cached: false } };
+    const ready = { data: { format: "vertical_video", media: [] }, meta: { ad_id: "tiktok:1", status: "ready", cached: true } };
+    const { client, calls } = makeClient([json(processing, 202, { "retry-after": "1" }), json(ready)]);
+    const res = await client.ads.features("tiktok:1");
+    assert.equal(calls.length, 2);
+    assert.equal(res.meta.status, "ready");
+    assert.equal(res.data?.format, "vertical_video");
+
+    const once = makeClient([json(processing, 202)]);
+    const first = await once.client.ads.features("tiktok:1", { wait: false });
+    assert.equal(first.meta.status, "processing");
+    assert.equal(once.calls.length, 1);
   });
 
   it("libraryUrl and coverage", async () => {

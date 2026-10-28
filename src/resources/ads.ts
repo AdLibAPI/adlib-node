@@ -1,5 +1,6 @@
 import type {
   AdFeaturesResponse,
+  FeaturesOptions,
   AdFormat,
   AdHistoryResponse,
   AdList,
@@ -12,7 +13,7 @@ import type {
   Source,
   StatusFilter,
 } from "../types.js";
-import type { APIRequest } from "../client.js";
+import { sleep, type APIRequest } from "../client.js";
 import { ValidationError } from "../errors.js";
 import { APIResource, enc, intInRange, oneOf, platforms, prefixedId } from "./shared.js";
 
@@ -135,9 +136,27 @@ export class Ads extends APIResource {
   /**
    * Creative features of an ad: hook, offers, urgency, social proof, format, video length, cuts and
    * on-image text. Every text tag carries the text it matched.
-   * Results are kept per ad version. Costs the features price (default 2 credits), plus the ad
-   * itself if it has to be fetched live.
+   * Results are kept per ad version. Costs the features price (default 2 credits) when the data is
+   * delivered, plus the ad itself if it has to be fetched live.
+   *
+   * A new analysis of video ads can take a while: the API then answers 202 with `meta.status` =
+   * `processing` (free), and this method asks again after `retry_after` until the data is ready,
+   * for up to `maxWaitMs` (default 2 minutes). `wait: false` returns the first answer as it is.
    */
-  features = (id: string, options?: RequestOptions): Promise<AdFeaturesResponse> =>
-    this.client.request({ path: `/v1/ads/${enc(prefixedId("id", id))}/features` }, options);
+  features(id: string, options: FeaturesOptions = {}): Promise<AdFeaturesResponse> {
+    const path = `/v1/ads/${enc(prefixedId("id", id))}/features`; // throws at once on a bad id
+    return this.#featuresUntilReady(path, options);
+  }
+
+  async #featuresUntilReady(path: string, options: FeaturesOptions): Promise<AdFeaturesResponse> {
+    const { wait = true, maxWaitMs = 120_000, ...req } = options;
+    const started = Date.now();
+    for (;;) {
+      const res = await this.client.request<AdFeaturesResponse>({ path }, req);
+      if (!wait || res.meta?.status !== "processing") return res;
+      const ms = Math.max(1, res.meta.retry_after ?? 10) * 1000;
+      if (Date.now() - started + ms > maxWaitMs) return res;
+      await sleep(ms, req.signal);
+    }
+  }
 }
