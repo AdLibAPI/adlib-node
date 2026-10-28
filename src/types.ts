@@ -376,13 +376,55 @@ export interface AdFeatures {
   ocr_text?: string;
 }
 
+export interface TimedText {
+  /** Seconds from the start of the video. */
+  start: number;
+  end: number;
+  text: string;
+}
+
+export interface AdTranscript {
+  media: {
+    url: string;
+    duration_s: number;
+    /** Spoken language, e.g. "en"; absent when nobody speaks. */
+    language?: string;
+    text: string;
+    segments: TimedText[];
+    error?: string;
+  }[];
+}
+
+export interface AdAIRead {
+  summary: string;
+  /** The opening words as the viewer meets them, in the ad's language. */
+  hook: string;
+  hook_type: "question" | "bold_claim" | "problem" | "offer" | "social_proof" | "curiosity" | "demonstration" | "testimonial" | "news" | "other";
+  angles: string[];
+  emotions: string[];
+  audience: string;
+  style: "ugc" | "talking_head" | "studio" | "product_demo" | "animation" | "slideshow" | "static_image" | "text_only" | "other";
+  cta: string;
+  offer: string;
+  language: string;
+  model: string;
+  with_transcript: boolean;
+}
+
 export interface AdFeaturesResponse {
   /** null while `meta.status` is `processing`. */
-  data: AdFeatures | null;
+  data: (AdFeatures & { transcript?: AdTranscript; ai?: AdAIRead }) | null;
   meta: {
     ad_id: string;
-    /** `processing`: the media are still being analysed (HTTP 202, not billed); ask again after `retry_after` seconds. */
+    /** `processing`: still being worked on (HTTP 202, not billed); ask again after `retry_after` seconds. */
     status: "ready" | "processing";
+    /** The part being worked on (processing only). */
+    pending?: "features" | "transcript" | "ai";
+    included?: FeaturesInclude[];
+    /** Credits by part: features, transcript, ai. */
+    credits?: Record<string, number>;
+    /** Parts that failed (not billed), with the reason. */
+    errors?: Record<string, string>;
     /** Seconds to wait before asking again (processing only). */
     retry_after?: number;
     /** Served from an earlier analysis of the same ad version. */
@@ -391,7 +433,11 @@ export interface AdFeaturesResponse {
   };
 }
 
+export type FeaturesInclude = "transcript" | "ai";
+
 export interface FeaturesOptions extends RequestOptions {
+  /** Optional parts: `transcript` (what is said in the videos, +10 credits per started minute), `ai` (AI read, +5 credits). */
+  include?: FeaturesInclude[];
   /** Ask again while the API is still analysing the media (default true). */
   wait?: boolean;
   /** Give up waiting after this long and return the `processing` answer (default 120000). */

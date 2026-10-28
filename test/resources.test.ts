@@ -80,6 +80,13 @@ describe("endpoints", () => {
     assert.throws(() => client.ads.features("1187430977361020"), /<platform>:<id>/);
   });
 
+  it("ads.features sends include", async () => {
+    const ready = { data: { format: "vertical_video", media: [] }, meta: { ad_id: "tiktok:1", status: "ready", cached: false } };
+    const { client, calls } = makeClient([json(ready)]);
+    await client.ads.features("tiktok:1", { include: ["transcript", "ai"] });
+    assert.equal(calls[0]!.url.searchParams.get("include"), "transcript,ai");
+  });
+
   it("ads.features asks again while the API answers 202", async () => {
     const processing = { data: null, meta: { ad_id: "tiktok:1", status: "processing", retry_after: 1, cached: false } };
     const ready = { data: { format: "vertical_video", media: [] }, meta: { ad_id: "tiktok:1", status: "ready", cached: true } };

@@ -139,6 +139,9 @@ export class Ads extends APIResource {
    * Results are kept per ad version. Costs the features price (default 2 credits) when the data is
    * delivered, plus the ad itself if it has to be fetched live.
    *
+   * `include: ["transcript", "ai"]` adds what is said in the videos with timestamps (+10 credits per
+   * started minute) and an AI read of hook type, angles, emotions, audience and style (+5 credits).
+   *
    * A new analysis of video ads can take a while: the API then answers 202 with `meta.status` =
    * `processing` (free), and this method asks again after `retry_after` until the data is ready,
    * for up to `maxWaitMs` (default 2 minutes). `wait: false` returns the first answer as it is.
@@ -149,10 +152,11 @@ export class Ads extends APIResource {
   }
 
   async #featuresUntilReady(path: string, options: FeaturesOptions): Promise<AdFeaturesResponse> {
-    const { wait = true, maxWaitMs = 120_000, ...req } = options;
+    const { wait = true, maxWaitMs = 120_000, include, ...req } = options;
+    const query = include?.length ? { include: include.join(",") } : undefined;
     const started = Date.now();
     for (;;) {
-      const res = await this.client.request<AdFeaturesResponse>({ path }, req);
+      const res = await this.client.request<AdFeaturesResponse>({ path, query }, req);
       if (!wait || res.meta?.status !== "processing") return res;
       const ms = Math.max(1, res.meta.retry_after ?? 10) * 1000;
       if (Date.now() - started + ms > maxWaitMs) return res;
