@@ -42,6 +42,20 @@ describe("endpoints", () => {
     assert.deepEqual(q(calls[1]!.url), { advertiser: "meta:15087023444" });
   });
 
+  it("search: new platforms, aliases, placement and removed", async () => {
+    const { client, calls } = makeClient([json({ data: [], next_cursor: null, meta: {} })]);
+    await client.search({ q: "shoes", platform: ["snapchat", "apple", "amazon", "microsoft"] });
+    await client.search({ q: "shoes", platform: "youtube", format: "video" });
+    await client.search({ domain: "nike.com", platform: "google", placement: "shopping" });
+    await client.search({ domain: "nike.com", source: "history", removed: true });
+    assert.equal(calls[0]!.url.searchParams.get("platform"), "snapchat,apple,amazon,microsoft");
+    assert.deepEqual(q(calls[1]!.url), { q: "shoes", platform: "youtube", format: "video" });
+    assert.deepEqual(q(calls[2]!.url), { domain: "nike.com", platform: "google", placement: "shopping" });
+    assert.deepEqual(q(calls[3]!.url), { domain: "nike.com", source: "history", removed: "true" });
+    // @ts-expect-error: not a placement
+    assert.throws(() => client.search({ q: "x", placement: "tv" }), /placement must be one of/);
+  });
+
   it("ads", async () => {
     const { client, calls } = makeClient([json({})]);
     await client.ads.get("meta:1234567890");
@@ -51,6 +65,35 @@ describe("endpoints", () => {
     assert.equal(calls[1]!.url.pathname, "/v1/ads/google:CR1");
     assert.equal(calls[1]!.url.searchParams.get("max_age"), "0");
     assert.equal(calls[2]!.url.pathname, "/v1/ads/meta:1/history");
+  });
+
+  it("ads.features", async () => {
+    const body = {
+      data: { version: "1", method: "rules", format: "vertical_video", text: { hook: "New drop?" }, media: [] },
+      meta: { ad_id: "meta:1187430977361020", cached: false, analyzed_at: "2026-10-27T10:00:00Z" },
+    };
+    const { client, calls } = makeClient([json(body)]);
+    const res = await client.ads.features("meta:1187430977361020");
+    assert.equal(calls[0]!.url.pathname, "/v1/ads/meta:1187430977361020/features");
+    assert.equal(res.data.format, "vertical_video");
+    assert.equal(res.meta.cached, false);
+    assert.throws(() => client.ads.features("1187430977361020"), /<platform>:<id>/);
+  });
+
+  it("libraryUrl and coverage", async () => {
+    const { client, calls } = makeClient([
+      json({ data: { kind: "ad", platform: "meta", id: "meta:1187430977361020", href: "/v1/ads/meta:1187430977361020" } }),
+      json({ data: { ads: 1, removed_kept: 0, platforms: [] } }),
+    ]);
+    const link = "https://www.facebook.com/ads/library/?id=1187430977361020";
+    const res = await client.libraryUrl(link);
+    assert.equal(res.data.id, "meta:1187430977361020");
+    assert.equal(calls[0]!.url.pathname, "/v1/library-url");
+    assert.equal(calls[0]!.url.searchParams.get("url"), link);
+    const cov = await client.coverage();
+    assert.equal(cov.data.ads, 1);
+    assert.equal(calls[1]!.url.pathname, "/public/coverage");
+    assert.throws(() => client.libraryUrl(" "), /url must be a non-empty string/);
   });
 
   it("encodes path segments but keeps colons", async () => {
@@ -146,6 +189,17 @@ describe("endpoints", () => {
     assert.equal(calls[1]!.url.searchParams.get("platform"), "linkedin");
   });
 
+  it("domains.suggest", async () => {
+    const { client, calls } = makeClient([json({ data: [] })]);
+    await client.domains.suggest("nik");
+    await client.domains.suggest({ q: "adid", limit: 20 });
+    assert.equal(calls[0]!.url.pathname, "/v1/domains/suggest");
+    assert.deepEqual(q(calls[0]!.url), { q: "nik" });
+    assert.deepEqual(q(calls[1]!.url), { q: "adid", limit: "20" });
+    assert.throws(() => client.domains.suggest("n"), /q must be 2 to 100 characters/);
+    assert.throws(() => client.domains.suggest({ q: "nike", limit: 21 }), /limit must be an integer/);
+  });
+
   it("batch", async () => {
     const { client, calls } = makeClient([json({ data: { job_id: "j1" } }, 202)]);
     const created = await client.batch.create({
@@ -179,6 +233,7 @@ describe("endpoints", () => {
       webhookUrl: "https://hooks.test/w",
       intervalHours: 12,
       archiveVideos: false,
+      emailAlerts: true,
     });
     await client.watchlists.list();
     await client.watchlists.get("wl-1");
@@ -193,6 +248,7 @@ describe("endpoints", () => {
       webhook_url: "https://hooks.test/w",
       interval_hours: 12,
       archive_videos: false,
+      email_alerts: true,
     });
     assert.deepEqual(
       calls.map((c) => `${c.method} ${c.url.pathname}`),
@@ -207,6 +263,20 @@ describe("endpoints", () => {
       ],
     );
     assert.deepEqual(JSON.parse(calls[4]!.body!), { advertisers: ["google:AR1"] });
+  });
+
+  it("watchlists.update", async () => {
+    const { client, calls } = makeClient([json({ data: { id: "wl-1", email_alerts: true } })]);
+    const res = await client.watchlists.update("wl-1", { name: "Rivals", webhookUrl: "", emailAlerts: true });
+    assert.equal(res.data.email_alerts, true);
+    await client.watchlists.update("wl-1", { emailAlerts: false });
+    assert.equal(calls[0]!.method, "PATCH");
+    assert.equal(calls[0]!.url.pathname, "/v1/watchlists/wl-1");
+    assert.equal(calls[0]!.headers["content-type"], "application/json");
+    assert.deepEqual(JSON.parse(calls[0]!.body!), { name: "Rivals", webhook_url: "", email_alerts: true });
+    assert.deepEqual(JSON.parse(calls[1]!.body!), { email_alerts: false });
+    assert.throws(() => client.watchlists.update("wl-1", {}), /at least one of/);
+    assert.throws(() => client.watchlists.update("wl-1", { name: "x".repeat(201) }), /at most 200/);
   });
 
   it("webhooks", async () => {
@@ -244,6 +314,16 @@ describe("endpoints", () => {
     assert.deepEqual(
       calls.map((c) => c.url.pathname + c.url.search),
       ["/v1/usage", "/v1/usage?days=7", "/v1/status", "/v1/platforms"],
+    );
+  });
+});
+
+describe("platforms", () => {
+  it("PLATFORMS lists every platform", async () => {
+    const { PLATFORMS } = await import("../src/index.js");
+    assert.deepEqual(
+      [...PLATFORMS],
+      ["meta", "google", "tiktok", "linkedin", "pinterest", "x", "snapchat", "apple", "amazon", "microsoft"],
     );
   });
 });

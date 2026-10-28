@@ -1,8 +1,10 @@
 import type {
+  AdFeaturesResponse,
   AdFormat,
   AdHistoryResponse,
   AdList,
   AdResponse,
+  Placement,
   PlatformFilter,
   RequestOptions,
   Sort,
@@ -16,6 +18,7 @@ const STATUSES: readonly StatusFilter[] = ["active", "inactive", "all"];
 const SOURCES: readonly Source[] = ["live", "history"];
 const SORTS: readonly Sort[] = ["newest", "days_running"];
 const FORMATS: readonly AdFormat[] = ["image", "video", "carousel", "text"];
+const PLACEMENTS: readonly Placement[] = ["youtube", "search", "shopping", "maps", "play"];
 
 export interface SearchParams {
   /** Keyword in the ad text. Exactly one of q, advertiser and domain is required. */
@@ -24,7 +27,10 @@ export interface SearchParams {
   advertiser?: string;
   /** Landing page / advertiser domain. */
   domain?: string;
-  /** Platforms to query; omit for all that support the query. */
+  /**
+   * Platforms to query; omit for all that support the query. youtube and play are Google ads on
+   * YouTube or Google Play (the same as platform google with that placement).
+   */
   platform?: PlatformFilter;
   /** ISO 3166-1 alpha-2, e.g. US. */
   country?: string;
@@ -35,8 +41,18 @@ export interface SearchParams {
   /** Shown before (YYYY-MM-DD). */
   to?: string;
   format?: AdFormat;
+  /**
+   * Google only: where the ad ran. youtube with format video gives YouTube video ads. Limits a live
+   * search to Google.
+   */
+  placement?: Placement;
   /** true = only political or issue ads, false = none. Only Meta labels them, so true limits results to Meta. */
   political?: boolean;
+  /**
+   * source=history only: true = only ads the platforms' libraries no longer show (taken down,
+   * deleted or aged out), which we kept; false = only ads still there.
+   */
+  removed?: boolean;
   /** live (default) or history: our own archive, including ads gone from the platforms. */
   source?: Source;
   /** source=history only: days_running = longest-running ads first (likely winners). */
@@ -75,7 +91,9 @@ export class Ads extends APIResource {
           from: params.from,
           to: params.to,
           format: oneOf("format", params.format, FORMATS),
+          placement: oneOf("placement", params.placement, PLACEMENTS),
           political: params.political,
+          removed: params.removed,
           source: oneOf("source", params.source, SOURCES),
           sort: oneOf("sort", params.sort, SORTS),
           cursor: params.cursor,
@@ -101,7 +119,16 @@ export class Ads extends APIResource {
     );
   };
 
-  /** All observed versions, status periods and events of an ad. */
+  /** All observed versions, status periods, events and daily EU reach of an ad. */
   history = (id: string, options?: RequestOptions): Promise<AdHistoryResponse> =>
     this.client.request({ path: `/v1/ads/${enc(prefixedId("id", id))}/history` }, options);
+
+  /**
+   * Creative features of an ad: hook, offers, urgency, social proof, format, video length, cuts and
+   * on-image text. Rule-based and measured, no AI model: every text tag carries the text it matched.
+   * Results are kept per ad version. Costs the features price (default 2 credits), plus the ad
+   * itself if it has to be fetched live.
+   */
+  features = (id: string, options?: RequestOptions): Promise<AdFeaturesResponse> =>
+    this.client.request({ path: `/v1/ads/${enc(prefixedId("id", id))}/features` }, options);
 }

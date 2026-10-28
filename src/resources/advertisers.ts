@@ -94,7 +94,7 @@ export interface TimelineParams {
 /** Advertisers: resolve a domain (and report wrong matches), profiles, ads, changes, stats and timelines. */
 export class Advertisers extends APIResource {
   /**
-   * A brand's advertiser ids on Meta, Google, TikTok, LinkedIn, Pinterest and X from its domain,
+   * A brand's advertiser ids on every platform (Meta, Google, TikTok, LinkedIn, Pinterest, X and more) from its domain,
    * each with a confidence `score` and `match_reason`.
    */
   resolve = (params: ResolveParams | string, options?: RequestOptions): Promise<ResolveResponse> => {

@@ -4,14 +4,16 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Official Node.js and TypeScript SDK for the **AdLib API**, one REST API for the public ad libraries of
-**Meta (Facebook/Instagram), Google, TikTok, LinkedIn, Pinterest and X**. Find a brand's advertiser
-accounts on every platform from its domain, search and read ads, see how long they ran and what
-changed, and set up watchlists that report new, stopped and changed ads to your webhook.
+**Meta (Facebook/Instagram), Google (incl. YouTube and Google Play), TikTok, LinkedIn, Pinterest, X,
+Snapchat, Apple, Amazon and Microsoft** (Microsoft in beta). Find a brand's advertiser accounts on
+every platform from its domain, search and read ads, see how long they ran and what changed, break a
+creative down into its features, and set up watchlists that report new, stopped, changed and removed
+ads to your webhook or by email.
 
 Ads that disappear from a platform's library stay in the AdLib archive, with their run time,
-creative versions and permanently archived images.
+creative versions and permanently archived images, and are marked with `removed_from_library_at`.
 
-> **Get an API key:** [adlibapi.com](https://adlibapi.com) · Docs: [api.adlibapi.com/docs](https://api.adlibapi.com/docs)
+> **Get an API key:** [adlibapi.com](https://adlibapi.com) (the free plan includes 5,000 credits a month) · Docs: [api.adlibapi.com/docs](https://api.adlibapi.com/docs)
 
 **SDKs and integrations:** [Python](https://github.com/AdLibAPI/adlib-python) · [MCP server](https://www.npmjs.com/package/adlib-mcp)
 
@@ -42,7 +44,7 @@ for (const a of data.advertisers ?? []) {
 // 2. Their ads (one search mode: q, advertiser or domain)
 const page = await adlib.search({ advertiser: "meta:15087023444", status: "active", limit: 25 });
 for (const ad of page.data ?? []) {
-  console.log(ad.id, ad.status, ad.derived.days_running, ad.creatives?.[0]?.text);
+  console.log(ad.id, ad.status, ad.derived.days_running, ad.derived.stage, ad.creatives?.[0]?.text);
 }
 if (page.meta.errors?.length) console.log("platforms that failed (not billed):", page.meta.errors);
 
@@ -52,8 +54,13 @@ const { data: watchlist } = await adlib.watchlists.create({
   advertisers: ["meta:15087023444", "tiktok:7012345678901234567"],
   webhookUrl: "https://your-app.example/webhooks/adlib",
   intervalHours: 24,
+  emailAlerts: true, // also mail a digest of each crawl's changes
 });
 console.log(watchlist.id);
+
+// 4. What makes their longest-running ad work: hook, offers, urgency, format, cuts, on-image text
+const { data: features } = await adlib.ads.features("meta:1187430977361020");
+console.log(features.format, features.text.hook, features.text.urgency, features.media?.[0]?.duration_s);
 ```
 
 Requests go to `https://api.adlibapi.com` with the `X-API-Key` header. Ids are
@@ -77,7 +84,7 @@ app.post("/webhooks/adlib", express.raw({ type: "application/json" }), (req, res
       secret: process.env.ADLIB_WEBHOOK_SECRET!,
     });
     if (event.event === "advertiser.changes") {
-      console.log(event.advertiser_id, event.summary); // { new, started, stopped, changed }
+      console.log(event.advertiser_id, event.summary); // { new, started, stopped, changed, removed }
     }
     res.sendStatus(200);
   } catch (err) {
@@ -101,7 +108,7 @@ const { AdLib } = require("adlib-api");
 
 ## Credits
 
-Calls are billed in credits per delivered result (the `X-Billing-Credits` response header):
+The free plan includes **5,000 credits a month**. Calls are billed in credits per delivered result (the `X-Billing-Credits` response header):
 1 per ad on Meta, TikTok, Pinterest and X, 2 on Google, 3 on LinkedIn, double for archived ads last
 shown more than a year ago. A live search page costs at most 5 ads' worth per platform
 (5 credits on Meta, 10 on Google, 15 on LinkedIn), however many ads it returns.
@@ -149,19 +156,46 @@ await adlib.search({ advertiser: "Nike", from: "2026-01-01", to: "2026-04-01" })
 await adlib.search({ q: "election", political: true });
 // Our archive, including ads gone from the platforms; longest-running first
 await adlib.search({ advertiser: "meta:15087023444", source: "history", sort: "days_running" });
+// Ads the platforms' libraries no longer show (taken down, deleted or aged out) that we kept
+await adlib.search({ domain: "nike.com", source: "history", removed: true });
+// YouTube video ads (youtube and play are aliases for Google with that placement)
+await adlib.search({ advertiser: "Nike", platform: "youtube", format: "video" });
+await adlib.search({ domain: "nike.com", platform: "google", placement: "shopping" });
+// The newer platforms
+await adlib.search({ q: "running shoes", platform: ["snapchat", "amazon", "microsoft"] });
 ```
 
 `adlib.search` is the same as `adlib.ads.search`. Without `platform`, all platforms that support the
-query are asked in parallel; failed ones are listed in `meta.errors` and not billed. See
-`adlib.platforms()` for the search modes and filters each platform supports.
+query are asked in parallel; failed ones are listed in `meta.errors` and not billed, and
+`meta.platform_totals` holds the number of matching ads per platform where the platform reports it.
+See `adlib.platforms()` for the search modes and filters each platform supports.
+
+Platforms: `meta`, `google`, `tiktok`, `linkedin`, `pinterest`, `x`, `snapchat`, `apple`, `amazon` and
+`microsoft` (beta), exported as `PLATFORMS`. In search, `youtube` and `play` are accepted too.
+`placement` (Google only) is one of `youtube`, `search`, `shopping`, `maps` and `play`.
 
 ### Ads
 
 ```ts
 await adlib.ads.get("meta:1234567890");                    // live, or the archived version
 await adlib.ads.get({ id: "meta:1234567890", maxAge: 0 }); // always fetch live
-await adlib.ads.history("meta:1234567890");                // versions, status periods, events
+await adlib.ads.history("meta:1234567890");                // versions, status periods, events, EU reach per day
+await adlib.ads.features("meta:1234567890");               // creative features (default 2 credits)
+
+// Got a link from an ad library? Turn it into an AdLib id (free)
+const { data: ref } = await adlib.libraryUrl("https://www.facebook.com/ads/library/?id=1187430977361020");
+console.log(ref.kind, ref.id, ref.href); // "ad", "meta:1187430977361020", "/v1/ads/meta:1187430977361020"
 ```
+
+Every ad has `derived.signals` (why it likely performs, from public facts: `long_running`,
+`still_running_90d`, `scaled`, `wide_reach`, `multi_country`) and `derived.stage` (`testing`,
+`scaling` or `proven`). `removed_from_library_at` is set once the platform's library stops showing
+the ad; we keep it.
+
+`ads.features(id)` is rule-based and measured, no AI model: every text tag (`urgency`,
+`social_proof`, `guarantee`, `free_offer`, `free_shipping`, `novelty`) carries the exact text it
+matched, media are measured with ffprobe/ffmpeg (aspect, duration, scene cuts, audio) and on-image text
+is read with OCR. Results are kept per ad version.
 
 ### Advertisers
 
@@ -170,7 +204,7 @@ await adlib.advertisers.resolve({ domain: "nike.com", platform: "meta,google", m
 await adlib.advertisers.get("meta:15087023444");
 await adlib.advertisers.get({ id: "meta:15087023444", refresh: true });
 await adlib.advertisers.ads({ id: "meta:15087023444", source: "history", status: "inactive" });
-await adlib.advertisers.changes({ id: "meta:15087023444", since: "2026-10-01", types: ["started", "stopped"] });
+await adlib.advertisers.changes({ id: "meta:15087023444", since: "2026-10-01", types: ["started", "stopped", "removed"] });
 await adlib.advertisers.stats("meta:15087023444");   // by status/format/country/language, winners
 await adlib.advertisers.timeline({ id: "meta:15087023444", from: "2026-01-01" });
 
@@ -208,6 +242,8 @@ await adlib.companies.get({ domain: "audi.de", includeRelated: true }); // count
 ```ts
 const { data } = await adlib.domains.check("nike.com"); // is this company advertising right now, and where?
 console.log(data.advertising, data.platforms?.map((p) => [p.platform, p.active_ads]));
+console.log(data.columns); // flat map for spreadsheets: advertising, total_active_ads, meta_active_ads, ...
+await adlib.domains.suggest("nik"); // autocomplete from domains we know (free)
 ```
 
 ### Batch jobs
@@ -227,6 +263,7 @@ const result = await adlib.batch.get({ jobId: job.job_id }); // status and pagin
 ```ts
 await adlib.watchlists.list();    // advertiser_count per watchlist; advertisers is empty here
 await adlib.watchlists.get(id);   // incl. the crawl status of each advertiser
+await adlib.watchlists.update(id, { name: "Rivals", webhookUrl: "", emailAlerts: true }); // "" removes the webhook
 await adlib.watchlists.addAdvertisers(id, ["google:AR18378488041124659201"]);
 await adlib.watchlists.removeAdvertiser(id, "google:AR18378488041124659201");
 await adlib.watchlists.delete(id);
@@ -249,7 +286,13 @@ await adlib.webhooks.rotateSecret(); // the old secret stops working immediately
 await adlib.usage({ days: 30 }); // plan, credits this month, daily rows
 await adlib.status();            // health per platform (no key needed, not billed)
 await adlib.platforms();         // search modes and filters per platform
+await adlib.coverage();          // archive size and freshness (public)
 ```
+
+### CSV
+
+The API answers any `/v1` endpoint as CSV with `output=csv`. The SDK returns parsed JSON only; for
+CSV, call the API directly (the next page's cursor is in the `X-Next-Cursor` header).
 
 ### Endpoints not wrapped yet
 
@@ -318,7 +361,7 @@ jitter):
 
 - **429 `rate_limited`** on every request, waiting `Retry-After` (capped at 60 s). The API rejects
   these before doing anything, so retrying a POST is safe.
-- **502, 503, 504, timeouts and network errors** on GET and DELETE only. POSTs (batch jobs,
+- **502, 503, 504, timeouts and network errors** on GET, PATCH and DELETE only. POSTs (batch jobs,
   watchlists, test events, secret rotation) are not retried after they may have reached the API.
 - Never: `quota_exceeded`, 500 and other 4xx errors.
 

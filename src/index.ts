@@ -59,8 +59,8 @@ export type {
 } from "./resources/advertisers.js";
 export type { Batch, BatchOptions, BatchType, CreateBatchParams, GetBatchParams } from "./resources/batch.js";
 export type { Companies, GetCompanyParams } from "./resources/companies.js";
-export type { CheckDomainParams, Domains } from "./resources/domains.js";
-export type { CreateWatchlistParams, Watchlists } from "./resources/watchlists.js";
+export type { CheckDomainParams, Domains, SuggestDomainsParams } from "./resources/domains.js";
+export type { CreateWatchlistParams, UpdateWatchlistParams, Watchlists } from "./resources/watchlists.js";
 export type { ListDeliveriesParams, Webhooks } from "./resources/webhooks.js";
 export * from "./types.js";
 export { VERSION } from "./version.js";

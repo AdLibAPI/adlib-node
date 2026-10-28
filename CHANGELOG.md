@@ -6,8 +6,23 @@ All notable changes to this package are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-28
+
 ### Added
 
+- Platforms `snapchat`, `apple`, `amazon` and `microsoft` (beta) in `Platform` and `PLATFORMS`;
+  `youtube` and `play` as search aliases for Google, and the `placement` search filter (`youtube`,
+  `search`, `shopping`, `maps`, `play`).
+- `ads.features(id)` for `GET /v1/ads/{id}/features`: creative features (hook, offers, urgency,
+  social proof, format, video length, cuts, on-image text), with `AdFeatures` types.
+- `adlib.libraryUrl(url)` for `GET /v1/library-url`: turns an ad library link into an AdLib id.
+- `adlib.coverage()` for `GET /public/coverage` and `domains.suggest(q)` for `GET /v1/domains/suggest`.
+- `watchlists.update(id, { name, webhookUrl, emailAlerts })` for `PATCH /v1/watchlists/{id}`, and
+  `emailAlerts` on `watchlists.create`; `Watchlist.email_alerts`.
+- `removed` search filter (source history only), `Ad.removed_from_library_at`, the `removed` event
+  type in changes, and `removed` in `advertiser.changes` webhook events.
+- `derived.signals` and `derived.stage` on ads, `meta.platform_totals` on lists, `columns` on domain
+  checks, `reach` on ad history, `family` on companies and `Plan.min_interval_hours`.
 - `companies.get(domain | params)` for `GET /v1/companies/{domain}`: all ad accounts of a domain
   across platforms with combined stats, plus candidates below `minScore`.
 - `advertisers.reportMatch(...)` and `advertisers.listReports()` for
@@ -20,6 +35,7 @@ All notable changes to this package are listed here. The format follows
 
 ### Changed
 
+- PATCH requests are retried like GET and DELETE.
 - `Watchlist.interval_seconds` is now `interval_hours`; watchlists also have `advertiser_count`.
   `watchlists.list()` returns them without `advertisers` entries; use `watchlists.get(id)`.
 

@@ -13,6 +13,20 @@ export interface CreateWatchlistParams {
   intervalHours?: number;
   /** Keep full video files for these advertisers (default true). */
   archiveVideos?: boolean;
+  /**
+   * Mail a digest of each crawl's changes (new, stopped, changed, removed ads) to your account's
+   * email. Accounts only, not admin keys.
+   */
+  emailAlerts?: boolean;
+}
+
+export interface UpdateWatchlistParams {
+  /** Up to 200 characters. */
+  name?: string;
+  /** New webhook URL (Slack and Discord webhooks get a readable message); "" removes it. */
+  webhookUrl?: string;
+  /** Mail a digest of each crawl's changes to your account's email. */
+  emailAlerts?: boolean;
 }
 
 function advertiserIds(value: unknown): string[] {
@@ -39,6 +53,7 @@ export class Watchlists extends APIResource {
           webhook_url: params.webhookUrl,
           interval_hours: intInRange("intervalHours", params.intervalHours, 1, 168),
           archive_videos: params.archiveVideos,
+          email_alerts: params.emailAlerts,
         }),
       },
       options,
@@ -48,6 +63,14 @@ export class Watchlists extends APIResource {
   /** A watchlist with the crawl status of each advertiser. */
   get = (id: string, options?: RequestOptions): Promise<WatchlistResponse> =>
     this.client.request({ path: `/v1/watchlists/${enc(nonEmpty("id", id))}` }, options);
+
+  /** Changes a watchlist's name, webhook or email alerts. Fields left out stay as they are. */
+  update = (id: string, params: UpdateWatchlistParams, options?: RequestOptions): Promise<WatchlistResponse> => {
+    if (params?.name !== undefined && params.name.length > 200) throw new ValidationError("name must be at most 200 characters");
+    const body = compact({ name: params?.name, webhook_url: params?.webhookUrl, email_alerts: params?.emailAlerts });
+    if (Object.keys(body).length === 0) throw new ValidationError("Pass at least one of name, webhookUrl or emailAlerts");
+    return this.client.request({ method: "PATCH", path: `/v1/watchlists/${enc(nonEmpty("id", id))}`, body }, options);
+  };
 
   /** Deletes a watchlist. */
   delete = async (id: string, options?: RequestOptions): Promise<void> => {

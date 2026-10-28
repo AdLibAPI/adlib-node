@@ -18,7 +18,9 @@ import { Watchlists } from "./resources/watchlists.js";
 import { Webhooks } from "./resources/webhooks.js";
 import type {
   AdList,
+  CoverageResponse,
   CursorPage,
+  LibraryUrlResponse,
   PlatformsResponse,
   QueryValue,
   RequestOptions,
@@ -26,6 +28,7 @@ import type {
   UsageResponse,
 } from "./types.js";
 import type { SearchParams } from "./resources/ads.js";
+import { nonEmpty } from "./resources/shared.js";
 import { VERSION } from "./version.js";
 
 export const DEFAULT_BASE_URL = "https://api.adlibapi.com";
@@ -36,7 +39,7 @@ const MAX_RETRY_DELAY_MS = 8_000;
 const MAX_RETRY_AFTER_MS = 60_000;
 const RETRYABLE_STATUS = new Set([502, 503, 504]);
 
-export type HTTPMethod = "GET" | "POST" | "DELETE";
+export type HTTPMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
 /** Billing and rate-limit headers of a successful response. */
 export interface ResponseInfo {
@@ -68,7 +71,7 @@ export interface ClientOptions {
   timeoutMs?: number;
   /**
    * Retries for 429 rate_limited (honouring Retry-After) on every request, and for 502, 503, 504,
-   * timeouts and network errors on GET and DELETE. Default 2. POSTs are not retried after they may
+   * timeouts and network errors on GET, PATCH and DELETE. Default 2. POSTs are not retried after they may
    * have reached the API, and quota_exceeded is never retried.
    */
   maxRetries?: number;
@@ -216,6 +219,20 @@ export class AdLib {
   /** Supported search modes and filters per platform. No key needed, not billed. */
   platforms(options?: RequestOptions): Promise<PlatformsResponse> {
     return this.request({ path: "/v1/platforms" }, options);
+  }
+
+  /**
+   * Turns a link copied from the Meta Ad Library, Google Ads Transparency Center, TikTok Ad
+   * Library, LinkedIn Ad Library, Pinterest Ads Repository or an X post into an AdLib id, with the
+   * endpoint that fetches it. Free.
+   */
+  libraryUrl(url: string, options?: RequestOptions): Promise<LibraryUrlResponse> {
+    return this.request({ path: "/v1/library-url", query: { url: nonEmpty("url", url) } }, options);
+  }
+
+  /** Archive size and freshness: ads, removed ads kept, media, crawls, per platform. Public, not billed. */
+  coverage(options?: RequestOptions): Promise<CoverageResponse> {
+    return this.request({ path: "/public/coverage" }, options);
   }
 
   /** Headers sent with every request. */
@@ -380,7 +397,7 @@ export class AdLib {
 /**
  * Whether a failed attempt may be retried. 429 rate_limited is rejected before the request is
  * handled, so it is safe for every method; quota_exceeded will not clear by waiting. 502/503/504,
- * timeouts and network errors are retried only for GET and DELETE.
+ * timeouts and network errors are retried only for GET, PATCH and DELETE.
  */
 export function isRetryable(error: AdLibError, idempotent: boolean): boolean {
   if (error instanceof QuotaExceededError) return false;
