@@ -1,3 +1,12 @@
+<p align="center">
+  <a href="https://adlibapi.com">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://adlibapi.com/brand/wordmark-dark.png">
+      <img alt="AdLib" src="https://adlibapi.com/brand/wordmark.png" width="260">
+    </picture>
+  </a>
+</p>
+
 # adlib-api – Ad library API client for Node.js and TypeScript
 
 [![npm](https://img.shields.io/npm/v/adlib-api.svg)](https://www.npmjs.com/package/adlib-api)
