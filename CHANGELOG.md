@@ -6,6 +6,18 @@ All notable changes to this package are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-28
+
+### Changed
+
+- `ads.features()` waits while the API is still analysing an ad's media: a new video analysis now
+  answers 202 with `meta.status` = `processing` and `retry_after` (free), and the SDK asks again
+  until the data is ready, for up to 2 minutes. `{ wait: false }` returns the first answer as it is,
+  `maxWaitMs` changes the limit.
+- `AdFeaturesResponse`: `data` is null while processing; `meta.status` (`ready` | `processing`)
+  and `meta.retry_after` are new, `meta.analyzed_at` is optional.
+- The features docs no longer describe how the features are computed.
+
 ## [0.3.0] - 2026-10-28
 
 ### Added
