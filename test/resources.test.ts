@@ -327,3 +327,62 @@ describe("platforms", () => {
     );
   });
 });
+
+describe("ids", () => {
+  it("accept every platform prefix and reject others", async () => {
+    const { client, calls } = makeClient([json({})]);
+    for (const p of ["meta", "google", "tiktok", "linkedin", "pinterest", "x", "snapchat", "apple", "amazon", "microsoft"]) {
+      await client.ads.get(`${p}:123`);
+    }
+    assert.equal(calls.length, 10);
+    assert.equal(calls[9]!.url.pathname, "/v1/ads/microsoft:123");
+    assert.throws(() => client.ads.get("youtube:123"), /must look like <platform>:<id>/);
+    assert.throws(() => client.advertisers.stats("facebook:1"), /platform one of meta, google/);
+  });
+});
+
+function csvResponse(text: string, headers: Record<string, string> = {}): Response {
+  return new Response(text, { status: 200, headers: { "content-type": "text/csv; charset=utf-8", ...headers } });
+}
+
+describe("csv output", () => {
+  it("searchCsv sends output=csv and reads X-Next-Cursor", async () => {
+    const { client, calls } = makeClient([csvResponse("id,platform\nmeta:1,meta\n", { "x-next-cursor": "c2" })]);
+    const page = await client.searchCsv({ q: "shoes", platform: ["meta", "youtube"], limit: 50 });
+    assert.deepEqual(page, { csv: "id,platform\nmeta:1,meta\n", nextCursor: "c2" });
+    assert.equal(calls[0]!.url.pathname, "/v1/search");
+    assert.deepEqual(q(calls[0]!.url), { q: "shoes", platform: "meta,youtube", limit: "50", output: "csv" });
+    assert.equal(calls[0]!.headers["accept"], "text/csv");
+  });
+
+  it("last page has no cursor; list and check endpoints", async () => {
+    const { client, calls } = makeClient([csvResponse("id\n")]);
+    assert.deepEqual(await client.ads.searchCsv({ domain: "nike.com" }), { csv: "id\n", nextCursor: null });
+    await client.advertisers.adsCsv({ id: "meta:1", source: "history" });
+    await client.advertisers.changesCsv({ id: "meta:1", since: "2026-10-01", types: ["removed"] });
+    await client.advertisers.timelineCsv({ id: "meta:1", from: "2026-01-01" });
+    await client.domains.checkCsv("nike.com");
+    await client.requestCsv({ path: "/v1/watchlists" });
+    assert.deepEqual(
+      calls.map((c) => c.url.pathname + c.url.search),
+      [
+        "/v1/search?domain=nike.com&output=csv",
+        "/v1/advertisers/meta:1/ads?source=history&output=csv",
+        "/v1/advertisers/meta:1/changes?since=2026-10-01&types=removed&output=csv",
+        "/v1/advertisers/meta:1/timeline?from=2026-01-01&output=csv",
+        "/v1/domains/nike.com/check?output=csv",
+        "/v1/watchlists?output=csv",
+      ],
+    );
+  });
+
+  it("errors stay JSON; a JSON answer to a CSV request is an error", async () => {
+    const { AdLibError, NotFoundError } = await import("../src/index.js");
+    const { client } = makeClient([
+      json({ error: { code: "not_found", message: "nope", request_id: "r", billed: false } }, 404),
+      json({ data: null }),
+    ]);
+    await assert.rejects(client.advertisers.adsCsv({ id: "meta:1" }), NotFoundError);
+    await assert.rejects(client.domains.checkCsv("nike.com"), (e: unknown) => e instanceof AdLibError && /not CSV/.test(e.message));
+  });
+});

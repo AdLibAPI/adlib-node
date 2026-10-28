@@ -1,6 +1,6 @@
 import type { AdLib } from "../client.js";
 import { ValidationError } from "../errors.js";
-import type { PlatformFilter } from "../types.js";
+import { PLATFORMS, type PlatformFilter } from "../types.js";
 
 /** Base class for resource namespaces (adlib.ads, adlib.advertisers, ...). */
 export abstract class APIResource {
@@ -22,13 +22,16 @@ export function nonEmpty(name: string, value: unknown): string {
   return value.trim();
 }
 
-const PREFIXED_ID = /^[a-z]+:\S.*$/;
+/** Ids use the ten libraries (YouTube and Play ads are google: ids). */
+const PREFIXED_ID = new RegExp(`^(${PLATFORMS.join("|")}):\\S.*$`);
 
 /** Validates an ad or advertiser id of the form <platform>:<platform_id>. */
 export function prefixedId(name: string, value: unknown): string {
   const s = nonEmpty(name, value);
   if (!PREFIXED_ID.test(s)) {
-    throw new ValidationError(`${name} must look like <platform>:<id>, e.g. meta:1234567890 (got ${JSON.stringify(s)})`);
+    throw new ValidationError(
+      `${name} must look like <platform>:<id>, e.g. meta:1234567890, with platform one of ${PLATFORMS.join(", ")} (got ${JSON.stringify(s)})`,
+    );
   }
   return s;
 }

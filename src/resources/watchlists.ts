@@ -7,9 +7,12 @@ export interface CreateWatchlistParams {
   advertisers: string[];
   /** Up to 200 characters. */
   name?: string;
-  /** Receives advertiser.changes events (new, stopped and changed ads). */
+  /**
+   * Receives signed advertiser.changes events (new, started, stopped, changed and removed ads). A
+   * Slack or Discord incoming webhook URL gets a readable message instead, unsigned.
+   */
   webhookUrl?: string;
-  /** Crawl interval, 1 to 168 hours, default 24. */
+  /** Crawl interval, 1 to 168 hours, default 24. Shortest per plan: Free and Starter 24, Growth 12, Pro 6, Business 1. */
   intervalHours?: number;
   /** Keep full video files for these advertisers (default true). */
   archiveVideos?: boolean;

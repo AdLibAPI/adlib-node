@@ -226,6 +226,14 @@ export interface CursorPage {
   next_cursor: string | null;
 }
 
+/** A page as CSV (`output=csv`). */
+export interface CsvPage {
+  /** Header row plus one row per item of `data` (an object becomes one row). */
+  csv: string;
+  /** From the X-Next-Cursor header; pass it back as `cursor`. null on the last page. */
+  nextCursor: string | null;
+}
+
 export interface ListMeta {
   count: number;
   cached: boolean;

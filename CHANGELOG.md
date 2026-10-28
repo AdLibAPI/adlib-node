@@ -6,6 +6,28 @@ All notable changes to this package are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-28
+
+### Added
+
+- CSV output (`output=csv`): `adlib.requestCsv(req)` for any `/v1` endpoint, plus `searchCsv`
+  (`adlib.searchCsv` and `ads.searchCsv`), `advertisers.adsCsv`, `advertisers.changesCsv`,
+  `advertisers.timelineCsv` and `domains.checkCsv`. They return `{ csv, nextCursor }` (`CsvPage`),
+  with the cursor of the next page from the `X-Next-Cursor` header.
+- README: credits per ad for all twelve platforms (1 on Meta, TikTok, Pinterest, X, Snapchat,
+  Apple, Amazon and Microsoft; 2 on Google, YouTube and Play; 3 on LinkedIn), the 2-credit features
+  price, the free endpoints, and Slack and Discord webhook URLs on watchlists.
+
+### Changed
+
+- Ad and advertiser ids are checked against the ten platform prefixes (`meta`, `google`, `tiktok`,
+  `linkedin`, `pinterest`, `x`, `snapchat`, `apple`, `amazon`, `microsoft`) before a request is
+  sent; YouTube and Play ads have `google:` ids.
+
+### Fixed
+
+- The `advertisers.reportMatch` validation message lists `wrong_role` as a kind.
+
 ## [0.2.0] - 2026-10-28
 
 ### Added

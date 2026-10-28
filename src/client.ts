@@ -19,6 +19,7 @@ import { Webhooks } from "./resources/webhooks.js";
 import type {
   AdList,
   CoverageResponse,
+  CsvPage,
   CursorPage,
   LibraryUrlResponse,
   PlatformsResponse,
@@ -40,6 +41,7 @@ const MAX_RETRY_AFTER_MS = 60_000;
 const RETRYABLE_STATUS = new Set([502, 503, 504]);
 
 export type HTTPMethod = "GET" | "POST" | "PATCH" | "DELETE";
+type ResponseMode = "json" | "csv";
 
 /** Billing and rate-limit headers of a successful response. */
 export interface ResponseInfo {
@@ -206,6 +208,11 @@ export class AdLib {
     return this.ads.search(params, options);
   }
 
+  /** Searches ads as CSV. Same as `ads.searchCsv`. */
+  searchCsv(params: SearchParams, options?: RequestOptions): Promise<CsvPage> {
+    return this.ads.searchCsv(params, options);
+  }
+
   /** Your billed credits per day and endpoint. `days` 1 to 92, default 30. */
   usage(params: { days?: number } = {}, options?: RequestOptions): Promise<UsageResponse> {
     return this.request({ path: "/v1/usage", query: { days: params.days } }, options);
@@ -285,6 +292,20 @@ export class AdLib {
    * also usable directly for endpoints this SDK does not wrap yet.
    */
   async request<T = unknown>(req: APIRequest, options: RequestOptions = {}): Promise<T> {
+    return this.#send<T>(req, options, "json");
+  }
+
+  /**
+   * Like {@link request}, but asks for CSV (`output=csv`). Any /v1 JSON endpoint can answer as
+   * CSV: `data` is flattened into rows (nested objects as dotted columns, value lists joined with
+   * "|", of object lists only the first item plus a `<name>_count` column). Billing and limits are
+   * the same as for JSON. The cursor of the next page comes from the `X-Next-Cursor` header.
+   */
+  async requestCsv(req: APIRequest, options: RequestOptions = {}): Promise<CsvPage> {
+    return this.#send<CsvPage>({ ...req, query: { ...req.query, output: "csv" } }, options, "csv");
+  }
+
+  async #send<T>(req: APIRequest, options: RequestOptions, mode: ResponseMode): Promise<T> {
     const method = req.method ?? "GET";
     const url = buildUrl(this.baseUrl, req);
     const payload = req.body !== undefined ? JSON.stringify(req.body) : undefined;
@@ -297,7 +318,7 @@ export class AdLib {
       if (signal?.aborted) throw signal.reason;
       let error: AdLibError;
       try {
-        return await this.#attempt<T>(method, url, payload, timeoutMs, signal);
+        return await this.#attempt<T>(method, url, payload, timeoutMs, signal, mode);
       } catch (err) {
         if (!(err instanceof AdLibError)) throw err; // user abort or unexpected error
         error = err;
@@ -321,6 +342,7 @@ export class AdLib {
     payload: string | undefined,
     timeoutMs: number,
     signal: AbortSignal | undefined,
+    mode: ResponseMode,
   ): Promise<T> {
     const controller = new AbortController();
     let timedOut = false;
@@ -335,6 +357,7 @@ export class AdLib {
       let res: Response;
       try {
         const headers = this.buildHeaders();
+        if (mode === "csv") headers.Accept = "text/csv";
         if (payload !== undefined) headers["Content-Type"] = "application/json";
         res = await this.#fetch(url, { method, headers, body: payload, signal: controller.signal });
       } catch (err) {
@@ -353,9 +376,12 @@ export class AdLib {
         throw new ConnectionError("Connection lost while reading the response", { cause: err });
       }
 
+      const isCsv = mode === "csv" && res.ok && (res.headers.get("content-type") ?? "").startsWith("text/csv");
       let body: unknown = undefined;
       let parsed = true;
-      if (text) {
+      if (isCsv) {
+        body = { csv: text, nextCursor: res.headers.get("x-next-cursor") || null } satisfies CsvPage;
+      } else if (text) {
         try {
           body = JSON.parse(text);
         } catch {
@@ -365,6 +391,15 @@ export class AdLib {
       }
 
       if (!res.ok) throw errorFromResponse(res.status, body, res.headers);
+      if (mode === "csv" && !isCsv) {
+        // The API answers JSON instead of CSV when there is nothing to flatten (no `data`).
+        throw new AdLibError(`${res.status} Response was not CSV`, {
+          status: res.status,
+          body,
+          headers: res.headers,
+          requestId: res.headers.get("x-request-id") ?? undefined,
+        });
+      }
       if (!parsed) {
         throw new AdLibError(`${res.status} Response was not valid JSON`, {
           status: res.status,

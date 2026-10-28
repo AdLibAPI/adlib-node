@@ -1,4 +1,5 @@
-import type { DomainCheckResponse, DomainSuggestionsResponse, PlatformFilter, RequestOptions } from "../types.js";
+import type { APIRequest } from "../client.js";
+import type { CsvPage, DomainCheckResponse, DomainSuggestionsResponse, PlatformFilter, RequestOptions } from "../types.js";
 import { ValidationError } from "../errors.js";
 import { APIResource, enc, intInRange, nonEmpty, platforms } from "./shared.js";
 
@@ -22,13 +23,15 @@ export class Domains extends APIResource {
    * Resolves the domain on all platforms and checks for current ads. Built for lead enrichment:
    * one flat price per check, free if nothing could be checked.
    */
-  check = (params: CheckDomainParams | string, options?: RequestOptions): Promise<DomainCheckResponse> => {
-    const p = typeof params === "string" ? { domain: params } : params;
-    return this.client.request(
-      { path: `/v1/domains/${enc(nonEmpty("domain", p?.domain))}/check`, query: { platform: platforms(p.platform) } },
-      options,
-    );
-  };
+  check = (params: CheckDomainParams | string, options?: RequestOptions): Promise<DomainCheckResponse> =>
+    this.client.request(checkRequest(params), options);
+
+  /**
+   * Like {@link check}, as CSV (`output=csv`): one row with the flat `columns` of the check, ready
+   * for a spreadsheet or CRM import.
+   */
+  checkCsv = (params: CheckDomainParams | string, options?: RequestOptions): Promise<CsvPage> =>
+    this.client.requestCsv(checkRequest(params), options);
 
   /**
    * Domain suggestions from our index while typing (free). Prefix match on domains and advertiser
@@ -43,4 +46,9 @@ export class Domains extends APIResource {
       options,
     );
   };
+}
+
+function checkRequest(params: CheckDomainParams | string): APIRequest {
+  const p = typeof params === "string" ? { domain: params } : params;
+  return { path: `/v1/domains/${enc(nonEmpty("domain", p?.domain))}/check`, query: { platform: platforms(p.platform) } };
 }

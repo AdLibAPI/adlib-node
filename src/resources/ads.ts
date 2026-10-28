@@ -4,6 +4,7 @@ import type {
   AdHistoryResponse,
   AdList,
   AdResponse,
+  CsvPage,
   Placement,
   PlatformFilter,
   RequestOptions,
@@ -11,6 +12,7 @@ import type {
   Source,
   StatusFilter,
 } from "../types.js";
+import type { APIRequest } from "../client.js";
 import { ValidationError } from "../errors.js";
 import { APIResource, enc, intInRange, oneOf, platforms, prefixedId } from "./shared.js";
 
@@ -69,40 +71,47 @@ export interface GetAdParams {
   maxAge?: number;
 }
 
+function searchRequest(params: SearchParams): APIRequest {
+  const modes = [params?.q, params?.advertiser, params?.domain].filter((v) => typeof v === "string" && v.trim());
+  if (modes.length !== 1) throw new ValidationError("Pass exactly one of q, advertiser or domain");
+  return {
+    path: "/v1/search",
+    query: {
+      q: params.q?.trim(),
+      advertiser: params.advertiser?.trim(),
+      domain: params.domain?.trim(),
+      platform: platforms(params.platform),
+      country: params.country,
+      status: oneOf("status", params.status, STATUSES),
+      from: params.from,
+      to: params.to,
+      format: oneOf("format", params.format, FORMATS),
+      placement: oneOf("placement", params.placement, PLACEMENTS),
+      political: params.political,
+      removed: params.removed,
+      source: oneOf("source", params.source, SOURCES),
+      sort: oneOf("sort", params.sort, SORTS),
+      cursor: params.cursor,
+      limit: intInRange("limit", params.limit, 1, 100),
+    },
+  };
+}
+
 /** Ads: search, one ad, and its history. */
 export class Ads extends APIResource {
   /**
    * Searches ads, across all platforms when `platform` is omitted. Platforms that fail are listed
    * in `meta.errors` and not billed. Paginated.
    */
-  search = (params: SearchParams, options?: RequestOptions): Promise<AdList> => {
-    const modes = [params?.q, params?.advertiser, params?.domain].filter((v) => typeof v === "string" && v.trim());
-    if (modes.length !== 1) throw new ValidationError("Pass exactly one of q, advertiser or domain");
-    return this.client.request(
-      {
-        path: "/v1/search",
-        query: {
-          q: params.q?.trim(),
-          advertiser: params.advertiser?.trim(),
-          domain: params.domain?.trim(),
-          platform: platforms(params.platform),
-          country: params.country,
-          status: oneOf("status", params.status, STATUSES),
-          from: params.from,
-          to: params.to,
-          format: oneOf("format", params.format, FORMATS),
-          placement: oneOf("placement", params.placement, PLACEMENTS),
-          political: params.political,
-          removed: params.removed,
-          source: oneOf("source", params.source, SOURCES),
-          sort: oneOf("sort", params.sort, SORTS),
-          cursor: params.cursor,
-          limit: intInRange("limit", params.limit, 1, 100),
-        },
-      },
-      options,
-    );
-  };
+  search = (params: SearchParams, options?: RequestOptions): Promise<AdList> =>
+    this.client.request(searchRequest(params), options);
+
+  /**
+   * Like {@link search}, as CSV (`output=csv`): one row per ad, nested fields as dotted columns
+   * (advertiser.name, creatives.0.text). Billed like the JSON search. Paginated via `nextCursor`.
+   */
+  searchCsv = (params: SearchParams, options?: RequestOptions): Promise<CsvPage> =>
+    this.client.requestCsv(searchRequest(params), options);
 
   /**
    * One ad, fetched live from its platform (which also updates the history). If the platform no

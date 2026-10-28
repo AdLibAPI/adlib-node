@@ -2,6 +2,7 @@ import type {
   AdList,
   AdvertiserResponse,
   AdvertiserStatsResponse,
+  CsvPage,
   EventList,
   EventType,
   PlatformFilter,
@@ -15,6 +16,7 @@ import type {
   Source,
   StatusFilter,
 } from "../types.js";
+import type { APIRequest } from "../client.js";
 import { ValidationError } from "../errors.js";
 import { APIResource, compact, csv, dateParam, enc, intInRange, nonEmpty, oneOf, platforms, prefixedId } from "./shared.js";
 
@@ -118,7 +120,7 @@ export class Advertisers extends APIResource {
    */
   reportMatch = (params: ReportMatchParams, options?: RequestOptions): Promise<ResolveReportResponse> => {
     const kind = oneOf("kind", params?.kind, REPORT_KINDS);
-    if (kind === undefined) throw new ValidationError("kind must be one of wrong_match, missing_match");
+    if (kind === undefined) throw new ValidationError("kind must be one of wrong_match, missing_match, wrong_role");
     if ((kind === "wrong_match" || kind === "wrong_role") && params.advertiserId === undefined) {
       throw new ValidationError(`advertiserId is required for kind ${kind}`);
     }
@@ -156,34 +158,19 @@ export class Advertisers extends APIResource {
 
   /** All ads of an advertiser, live or from history. Paginated. */
   ads = (params: AdvertiserAdsParams, options?: RequestOptions): Promise<AdList> =>
-    this.client.request(
-      {
-        path: `/v1/advertisers/${enc(prefixedId("id", params?.id))}/ads`,
-        query: {
-          status: oneOf("status", params.status, STATUSES),
-          source: oneOf("source", params.source, SOURCES),
-          sort: oneOf("sort", params.sort, SORTS),
-          cursor: params.cursor,
-          limit: intInRange("limit", params.limit, 1, 100),
-        },
-      },
-      options,
-    );
+    this.client.request(adsRequest(params), options);
 
-  /** New, stopped and changed ads since a point in time. Paginated. */
+  /** Like {@link ads}, as CSV (`output=csv`), one row per ad. Paginated via `nextCursor`. */
+  adsCsv = (params: AdvertiserAdsParams, options?: RequestOptions): Promise<CsvPage> =>
+    this.client.requestCsv(adsRequest(params), options);
+
+  /** New, stopped, changed, discovered and removed ads since a point in time. Paginated. */
   changes = (params: ChangesParams, options?: RequestOptions): Promise<EventList> =>
-    this.client.request(
-      {
-        path: `/v1/advertisers/${enc(prefixedId("id", params?.id))}/changes`,
-        query: {
-          since: nonEmpty("since", dateParam(params.since)),
-          types: csv(params.types),
-          cursor: params.cursor,
-          limit: intInRange("limit", params.limit, 1, 200),
-        },
-      },
-      options,
-    );
+    this.client.request(changesRequest(params), options);
+
+  /** Like {@link changes}, as CSV (`output=csv`), one row per event. Paginated via `nextCursor`. */
+  changesCsv = (params: ChangesParams, options?: RequestOptions): Promise<CsvPage> =>
+    this.client.requestCsv(changesRequest(params), options);
 
   /**
    * Analytics from the history: ads by status, format, country and language; run-time
@@ -194,16 +181,46 @@ export class Advertisers extends APIResource {
 
   /** When which ads started and stopped. Paginated. */
   timeline = (params: TimelineParams, options?: RequestOptions): Promise<EventList> =>
-    this.client.request(
-      {
-        path: `/v1/advertisers/${enc(prefixedId("id", params?.id))}/timeline`,
-        query: {
-          from: dateParam(params.from),
-          to: dateParam(params.to),
-          cursor: params.cursor,
-          limit: intInRange("limit", params.limit, 1, 200),
-        },
-      },
-      options,
-    );
+    this.client.request(timelineRequest(params), options);
+
+  /** Like {@link timeline}, as CSV (`output=csv`), one row per event. Paginated via `nextCursor`. */
+  timelineCsv = (params: TimelineParams, options?: RequestOptions): Promise<CsvPage> =>
+    this.client.requestCsv(timelineRequest(params), options);
+}
+
+function adsRequest(params: AdvertiserAdsParams): APIRequest {
+  return {
+    path: `/v1/advertisers/${enc(prefixedId("id", params?.id))}/ads`,
+    query: {
+      status: oneOf("status", params.status, STATUSES),
+      source: oneOf("source", params.source, SOURCES),
+      sort: oneOf("sort", params.sort, SORTS),
+      cursor: params.cursor,
+      limit: intInRange("limit", params.limit, 1, 100),
+    },
+  };
+}
+
+function changesRequest(params: ChangesParams): APIRequest {
+  return {
+    path: `/v1/advertisers/${enc(prefixedId("id", params?.id))}/changes`,
+    query: {
+      since: nonEmpty("since", dateParam(params.since)),
+      types: csv(params.types),
+      cursor: params.cursor,
+      limit: intInRange("limit", params.limit, 1, 200),
+    },
+  };
+}
+
+function timelineRequest(params: TimelineParams): APIRequest {
+  return {
+    path: `/v1/advertisers/${enc(prefixedId("id", params?.id))}/timeline`,
+    query: {
+      from: dateParam(params.from),
+      to: dateParam(params.to),
+      cursor: params.cursor,
+      limit: intInRange("limit", params.limit, 1, 200),
+    },
+  };
 }
