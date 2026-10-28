@@ -211,9 +211,9 @@ Every ad has `derived.signals` (why it likely performs, from public facts: `long
 `scaling` or `proven`). `removed_from_library_at` is set once the platform's library stops showing
 the ad; we keep it.
 
-`ads.features(id)` is rule-based and measured, no AI model: every text tag (`urgency`,
+`ads.features(id)` returns tags with evidence: every text tag (`urgency`,
 `social_proof`, `guarantee`, `free_offer`, `free_shipping`, `novelty`) carries the exact text it
-matched, media are measured with ffprobe/ffmpeg (aspect, duration, scene cuts, audio) and on-image text
+matched, media are measured (aspect, duration, scene cuts, audio) and on-image text
 is read with OCR. Results are kept per ad version.
 
 ### Advertisers

@@ -287,7 +287,7 @@ export interface AdHistory {
   reach: ReachPoint[] | null;
 }
 
-// Creative features (GET /v1/ads/{id}/features). Rule-based and measured, no AI model.
+// Creative features (GET /v1/ads/{id}/features). Every tag carries the text it matched.
 
 /** A text tag with the exact text it matched. */
 export interface FeatureMatch {

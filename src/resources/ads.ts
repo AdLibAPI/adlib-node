@@ -134,7 +134,7 @@ export class Ads extends APIResource {
 
   /**
    * Creative features of an ad: hook, offers, urgency, social proof, format, video length, cuts and
-   * on-image text. Rule-based and measured, no AI model: every text tag carries the text it matched.
+   * on-image text. Every text tag carries the text it matched.
    * Results are kept per ad version. Costs the features price (default 2 credits), plus the ad
    * itself if it has to be fetched live.
    */
