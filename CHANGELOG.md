@@ -16,6 +16,8 @@ All notable changes to this package are listed here. The format follows
   `maxWaitMs` changes the limit.
 - `AdFeaturesResponse`: `data` is null while processing; `meta.status` (`ready` | `processing`)
   and `meta.retry_after` are new, `meta.analyzed_at` is optional.
+- `OCRResult.timeline` (new `OCRSpan`): for videos, when each on-screen text appears and
+  disappears (`start`, `end` in seconds, `text`).
 - The features docs no longer describe how the features are computed.
 
 ## [0.3.0] - 2026-10-28

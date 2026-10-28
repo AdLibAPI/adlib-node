@@ -318,11 +318,21 @@ export interface TextFeatures {
 }
 
 export interface OCRResult {
-  /** Text tesseract read on the image (for videos: on the first frame and at 3 s). */
+  /** Text on the image; for videos, the distinct on-screen texts across the whole video, one per line. */
   text: string;
-  /** Mean word confidence 0..1; below 0.6 the text is dropped. */
+  /** Mean confidence 0..1 of the words kept; words read with less than 0.75 are dropped. */
   confidence: number;
   languages: string;
+  /** Videos: when each text is on screen, in order of appearance. */
+  timeline?: OCRSpan[];
+}
+
+export interface OCRSpan {
+  /** Seconds from the start of the video. */
+  start: number;
+  /** Seconds; the text is on screen until here. */
+  end: number;
+  text: string;
 }
 
 export interface MediaFeatures {
@@ -351,7 +361,7 @@ export interface LandingFeatures {
 
 export interface AdFeatures {
   version: string;
-  /** rules = text rules with evidence, measurement = ffprobe/ffmpeg, ocr = tesseract. */
+  /** rules = text tags with evidence, measurement = measured from the media, ocr = text read from images and video frames. */
   method: string;
   /**
    * From the measured media: vertical_video, horizontal_video, square_video, vertical_image,
